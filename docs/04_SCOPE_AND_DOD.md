@@ -53,7 +53,7 @@
 - [x] Approval rejection and expiry are implemented and tested.
 - [x] MockDesk HTTP retry/backoff behavior is tested for transient errors.
 - [x] Injection detection quarantines the document and emits an audit event.
-- [ ] Evaluation cases run through a reproducible runner.
+- [x] Evaluation cases run through a reproducible runner.
 - [ ] UI displays failure, rejection, duplicate and audit-detail states.
 - [ ] `ruff check .`, `pytest -q` and `python scripts/verify.py` are clean.
 - [ ] Docker Compose has been executed on a Docker-capable machine.

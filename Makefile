@@ -1,4 +1,4 @@
-.PHONY: install test verify lint run-mockdesk run-app demo clean
+.PHONY: install test verify evals lint run-mockdesk run-app demo clean
 
 install:
 	python -m pip install -e '.[dev]'
@@ -8,6 +8,9 @@ test:
 
 verify:
 	python scripts/verify.py
+
+evals:
+	python scripts/run_evals.py
 
 lint:
 	ruff check .
