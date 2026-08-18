@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import sqlite3
 from collections.abc import Callable
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
@@ -16,7 +16,7 @@ APPROVAL_TTL = timedelta(hours=24)
 
 
 def _now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 class SQLiteStore:
@@ -63,7 +63,9 @@ class SQLiteStore:
                 """
             )
 
-    def create_approval(self, request_id: str, action_type: str, requested_by: str) -> ApprovalRecord:
+    def create_approval(
+        self, request_id: str, action_type: str, requested_by: str
+    ) -> ApprovalRecord:
         now = self._now_fn()
         record = ApprovalRecord(
             approval_id=f"AP-{uuid4().hex[:10].upper()}",
@@ -107,7 +109,8 @@ class SQLiteStore:
         now = self._now_fn()
         with self._connect() as connection:
             connection.execute(
-                "UPDATE approvals SET status = ?, approved_by = ?, updated_at = ? WHERE approval_id = ?",
+                "UPDATE approvals SET status = ?, approved_by = ?, updated_at = ?"
+                " WHERE approval_id = ?",
                 ("APPROVED", approved_by, now.isoformat(), approval_id),
             )
         return self.get_approval(approval_id)

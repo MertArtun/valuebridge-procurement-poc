@@ -18,15 +18,17 @@ from app.models import (
     PurchaseRequest,
     TicketResult,
 )
+from app.security import AuthorizationError
 from app.service import ProcurementService
 from app.store import SQLiteStore
-from app.security import AuthorizationError
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
 def _default_service() -> ProcurementService:
-    store = SQLiteStore(Path(os.getenv("VALUEBRIDGE_DB_PATH", PROJECT_ROOT / "runtime/valuebridge.db")))
+    store = SQLiteStore(
+        Path(os.getenv("VALUEBRIDGE_DB_PATH", PROJECT_ROOT / "runtime/valuebridge.db"))
+    )
     gateway = HttpMockDeskGateway(os.getenv("MOCKDESK_URL", "http://mockdesk:8001"))
     return ProcurementService.from_project_data(
         store=store,

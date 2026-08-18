@@ -45,7 +45,7 @@ class ProcurementService:
         store: SQLiteStore,
         mockdesk_gateway: MockDeskGateway,
         project_root: Path,
-    ) -> "ProcurementService":
+    ) -> ProcurementService:
         return cls(
             store=store,
             mockdesk_gateway=mockdesk_gateway,

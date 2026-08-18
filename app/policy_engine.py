@@ -14,7 +14,7 @@ class PolicyEngine:
         self._rules = rules
 
     @classmethod
-    def from_yaml(cls, path: Path) -> "PolicyEngine":
+    def from_yaml(cls, path: Path) -> PolicyEngine:
         return cls(yaml.safe_load(path.read_text(encoding="utf-8")))
 
     def evaluate(
@@ -28,7 +28,9 @@ class PolicyEngine:
         minimum_quotes = int(self._rules["alternative_quotes"]["minimum_quotes"])
 
         finance_required = request.amount_try > finance_threshold
-        quote_missing = request.amount_try > quote_threshold and request.received_quotes < minimum_quotes
+        quote_missing = (
+            request.amount_try > quote_threshold and request.received_quotes < minimum_quotes
+        )
         certificate_status = _certificate_status(
             supplier.iso_9001_expiry_date,
             request.request_date,
@@ -44,7 +46,9 @@ class PolicyEngine:
             reasons.append("Zorunlu alternatif teklif sayısı karşılanmıyor.")
             rules.append("ALTERNATIVE_QUOTES")
         if certificate_status != "VALID":
-            reasons.append("Tedarikçinin zorunlu ISO 9001 sertifikası talep tarihinde geçerli değil.")
+            reasons.append(
+                "Tedarikçinin zorunlu ISO 9001 sertifikası talep tarihinde geçerli değil."
+            )
             rules.append("SUPPLIER_CERTIFICATE")
         if analysis.variance_percent > Decimal("0"):
             warnings.append(
@@ -52,7 +56,8 @@ class PolicyEngine:
             )
         if analysis.lead_time_variance_days > 0:
             warnings.append(
-                f"Teklif edilen teslim süresi standart süreden {analysis.lead_time_variance_days} gün uzun."
+                "Teklif edilen teslim süresi standart süreden "
+                f"{analysis.lead_time_variance_days} gün uzun."
             )
 
         status = "CONDITIONAL_REVIEW" if reasons else "APPROVED"

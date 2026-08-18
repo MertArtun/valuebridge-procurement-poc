@@ -2,25 +2,25 @@ from __future__ import annotations
 
 import csv
 import json
+import sys
 import tempfile
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
 from statistics import median
-import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from fastapi.testclient import TestClient
+from fastapi.testclient import TestClient  # noqa: E402
 
-from app.main import create_app
-from app.mockdesk_client import InProcessMockDeskGateway
-from app.retrieval import PolicyRepository
-from app.service import ProcurementService
-from app.store import SQLiteStore
-from mockdesk.store import MockDeskStore
+from app.main import create_app  # noqa: E402
+from app.mockdesk_client import InProcessMockDeskGateway  # noqa: E402
+from app.retrieval import PolicyRepository  # noqa: E402
+from app.service import ProcurementService  # noqa: E402
+from app.store import SQLiteStore  # noqa: E402
+from mockdesk.store import MockDeskStore  # noqa: E402
 
 
 def check_history_median() -> None:

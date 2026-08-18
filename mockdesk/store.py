@@ -51,7 +51,13 @@ class MockDeskStore:
                     ticket_id, idempotency_key, request_id, payload_json, status
                 ) VALUES (?, ?, ?, ?, ?)
                 """,
-                (ticket_id, idempotency_key, request_id, json.dumps(payload, ensure_ascii=False), "OPEN"),
+                (
+                    ticket_id,
+                    idempotency_key,
+                    request_id,
+                    json.dumps(payload, ensure_ascii=False),
+                    "OPEN",
+                ),
             )
         return TicketResult(
             ticket_id=ticket_id,
