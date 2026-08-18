@@ -41,10 +41,17 @@
         <label>Teklif Edilen Teslim (gün)<input name="offered_lead_time_days" type="number" value="{{ hero.offered_lead_time_days }}"></label>
         <button class="primary" type="submit">Talebi Analiz Et</button>
       </form>
+      <div class="state-banner state-info hidden" id="analysis-loading" role="status" aria-live="polite">Analiz çalışıyor…</div>
+      <div class="state-banner state-error hidden" id="analysis-error" role="alert">
+        <strong>Analiz başarısız.</strong> <span id="analysis-error-message"></span>
+      </div>
     </section>
 
     <section class="card hidden" id="analysis-card">
       <div class="section-heading"><div><p class="step">02</p><h2>Analiz ve Kaynaklar</h2></div></div>
+      <div class="state-banner state-warning hidden" id="security-notice" role="status" aria-live="polite">
+        <strong>Güvenlik: SECURITY_CONTENT_QUARANTINED</strong> <span id="security-notice-message"></span>
+      </div>
       <div id="analysis-summary" class="metric-grid"></div>
       <div class="two-column">
         <div>
@@ -60,7 +67,10 @@
     </section>
 
     <section class="card hidden" id="approval-card">
-      <div class="section-heading"><div><p class="step">03</p><h2>İnsan Onayı</h2></div></div>
+      <div class="section-heading">
+        <div><p class="step">03</p><h2>İnsan Onayı</h2></div>
+        <span class="status" id="approval-status" role="status" aria-live="polite">ONAY BEKLİYOR</span>
+      </div>
       <p>MockDesk üzerinde “Procurement Exception Review” kaydı oluşturulacaktır. Yazma işlemi finans onayı olmadan yürütülemez.</p>
       <div id="action-preview"></div>
       <div class="button-row">
@@ -68,11 +78,21 @@
         <button id="reject-button" type="button">Onayı Reddet</button>
         <button id="execute-button" type="button" disabled>MockDesk Kaydını Oluştur</button>
       </div>
+      <div class="state-banner state-success hidden" id="execution-success" role="status" aria-live="polite">
+        <strong>MockDesk kaydı oluşturuldu.</strong> <span id="execution-success-message"></span>
+      </div>
+      <div class="state-banner state-duplicate hidden" id="duplicate-notice" role="status" aria-live="polite">
+        <strong>Tekrar yürütme: ALREADY_PROCESSED</strong> <span id="duplicate-notice-message"></span>
+      </div>
+      <div class="state-banner state-error hidden" id="action-error" role="alert">
+        <strong>İşlem reddedildi.</strong> <span id="action-error-message"></span>
+      </div>
       <pre id="action-result"></pre>
     </section>
 
     <section class="card">
       <div class="section-heading"><div><p class="step">04</p><h2>Audit Trail</h2></div><button id="audit-button" type="button">Audit'i Yenile</button></div>
+      <p class="hint">Her olayı klavye veya fare ile açarak trace ID'sini ve ayrıntı JSON'unu görebilirsiniz.</p>
       <div id="audit-events" class="audit-list"><p>Henüz olay yok.</p></div>
     </section>
   </main>
