@@ -81,6 +81,7 @@ class ApprovalRecord(ApiModel):
     approved_by: str | None = None
     created_at: datetime
     updated_at: datetime
+    expires_at: datetime
 
 
 class AuditEvent(ApiModel):

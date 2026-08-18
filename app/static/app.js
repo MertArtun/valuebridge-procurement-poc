@@ -3,6 +3,7 @@ const analysisCard = document.querySelector('#analysis-card');
 const approvalCard = document.querySelector('#approval-card');
 const statusBadge = document.querySelector('#workflow-status');
 const approveButton = document.querySelector('#approve-button');
+const rejectButton = document.querySelector('#reject-button');
 const executeButton = document.querySelector('#execute-button');
 const auditButton = document.querySelector('#audit-button');
 let approvalId = null;
@@ -53,6 +54,7 @@ form.addEventListener('submit', async (event) => {
   analysisCard.classList.remove('hidden');
   approvalCard.classList.remove('hidden');
   approveButton.disabled = false;
+  rejectButton.disabled = false;
   executeButton.disabled = true;
   await renderActionPreview();
   await refreshAudit();
@@ -86,7 +88,24 @@ approveButton.addEventListener('click', async () => {
   document.querySelector('#action-result').textContent = JSON.stringify(body, null, 2);
   if (response.ok) {
     approveButton.disabled = true;
+    rejectButton.disabled = true;
     executeButton.disabled = false;
+  }
+  await refreshAudit();
+});
+
+rejectButton.addEventListener('click', async () => {
+  const response = await fetch(`/api/v1/approvals/${approvalId}/reject`, {
+    method: 'POST',
+    headers: headers('finance_approver', 'finance_user'),
+  });
+  const body = await response.json();
+  document.querySelector('#action-result').textContent = JSON.stringify(body, null, 2);
+  if (response.ok) {
+    statusBadge.textContent = 'REDDEDİLDİ';
+    approveButton.disabled = true;
+    rejectButton.disabled = true;
+    executeButton.disabled = true;
   }
   await refreshAudit();
 });

@@ -162,6 +162,19 @@ class ProcurementService:
         }
         return payload, f"{request_id}-PROCUREMENT-REVIEW"
 
+    def reject(self, approval_id: str, *, role: str, user: str):
+        record = self.store.reject(approval_id, approver_role=role)
+        case = self.store.load_case(approval_id)
+        self.store.add_audit(
+            event_type="APPROVAL_REJECTED",
+            actor=user,
+            request_id=record.request_id,
+            approval_id=approval_id,
+            trace_id=case["trace_id"],
+            details={"status": record.status},
+        )
+        return record
+
     def execute(self, approval_id: str, *, role: str, user: str) -> TicketResult:
         authorize(role, "execute_tool_action")
         approval = self.store.require_approved(approval_id)

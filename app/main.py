@@ -9,7 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.requests import Request
 
-from app.approvals import ApprovalRequiredError
+from app.approvals import ApprovalRequiredError, InvalidApprovalStateError
 from app.mockdesk_client import HttpMockDeskGateway
 from app.models import (
     ActionPreview,
@@ -48,6 +48,10 @@ def create_app(service: ProcurementService | None = None) -> FastAPI:
     @app.exception_handler(AuthorizationError)
     async def authorization_error(_request: Request, exc: AuthorizationError):
         return _json_error(403, "FORBIDDEN", str(exc), retryable=False)
+
+    @app.exception_handler(InvalidApprovalStateError)
+    async def invalid_approval_state(_request: Request, exc: InvalidApprovalStateError):
+        return _json_error(409, "INVALID_APPROVAL_STATE", str(exc), retryable=False)
 
     @app.get("/health")
     def health() -> dict[str, str]:
@@ -99,6 +103,17 @@ def create_app(service: ProcurementService | None = None) -> FastAPI:
     ) -> ApprovalRecord:
         try:
             return app.state.service.approve(approval_id, role=x_demo_role, user=x_demo_user)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    @app.post("/api/v1/approvals/{approval_id}/reject", response_model=ApprovalRecord)
+    def reject(
+        approval_id: str,
+        x_demo_role: str = Header(alias="X-Demo-Role"),
+        x_demo_user: str = Header(alias="X-Demo-User"),
+    ) -> ApprovalRecord:
+        try:
+            return app.state.service.reject(approval_id, role=x_demo_role, user=x_demo_user)
         except KeyError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
 

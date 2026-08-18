@@ -2,14 +2,17 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from datetime import datetime, timezone
+from collections.abc import Callable
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
-from app.approvals import ApprovalRequiredError
+from app.approvals import ApprovalRequiredError, InvalidApprovalStateError
 from app.models import ApprovalRecord, AuditEvent
 from app.security import authorize
+
+APPROVAL_TTL = timedelta(hours=24)
 
 
 def _now() -> datetime:
@@ -17,8 +20,9 @@ def _now() -> datetime:
 
 
 class SQLiteStore:
-    def __init__(self, path: Path) -> None:
+    def __init__(self, path: Path, now: Callable[[], datetime] = _now) -> None:
         self.path = path
+        self._now_fn = now
         path.parent.mkdir(parents=True, exist_ok=True)
         self._initialize()
 
@@ -39,7 +43,8 @@ class SQLiteStore:
                     status TEXT NOT NULL,
                     approved_by TEXT,
                     created_at TEXT NOT NULL,
-                    updated_at TEXT NOT NULL
+                    updated_at TEXT NOT NULL,
+                    expires_at TEXT NOT NULL
                 );
                 CREATE TABLE IF NOT EXISTS cases (
                     approval_id TEXT PRIMARY KEY,
@@ -59,7 +64,7 @@ class SQLiteStore:
             )
 
     def create_approval(self, request_id: str, action_type: str, requested_by: str) -> ApprovalRecord:
-        now = _now()
+        now = self._now_fn()
         record = ApprovalRecord(
             approval_id=f"AP-{uuid4().hex[:10].upper()}",
             request_id=request_id,
@@ -68,14 +73,15 @@ class SQLiteStore:
             status="PENDING",
             created_at=now,
             updated_at=now,
+            expires_at=now + APPROVAL_TTL,
         )
         with self._connect() as connection:
             connection.execute(
                 """
                 INSERT INTO approvals (
                     approval_id, request_id, action_type, requested_by, status,
-                    approved_by, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    approved_by, created_at, updated_at, expires_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     record.approval_id,
@@ -86,17 +92,38 @@ class SQLiteStore:
                     record.approved_by,
                     record.created_at.isoformat(),
                     record.updated_at.isoformat(),
+                    record.expires_at.isoformat(),
                 ),
             )
         return record
 
     def approve(self, approval_id: str, approved_by: str, approver_role: str) -> ApprovalRecord:
         authorize(approver_role, "approve_finance_action")
-        now = _now()
+        record = self.get_approval(approval_id)
+        if record.status != "PENDING":
+            raise InvalidApprovalStateError(
+                f"Approval {approval_id} is {record.status} and cannot transition to APPROVED"
+            )
+        now = self._now_fn()
         with self._connect() as connection:
             connection.execute(
                 "UPDATE approvals SET status = ?, approved_by = ?, updated_at = ? WHERE approval_id = ?",
                 ("APPROVED", approved_by, now.isoformat(), approval_id),
+            )
+        return self.get_approval(approval_id)
+
+    def reject(self, approval_id: str, approver_role: str) -> ApprovalRecord:
+        authorize(approver_role, "approve_finance_action")
+        record = self.get_approval(approval_id)
+        if record.status != "PENDING":
+            raise InvalidApprovalStateError(
+                f"Approval {approval_id} is {record.status} and cannot transition to REJECTED"
+            )
+        now = self._now_fn()
+        with self._connect() as connection:
+            connection.execute(
+                "UPDATE approvals SET status = ?, updated_at = ? WHERE approval_id = ?",
+                ("REJECTED", now.isoformat(), approval_id),
             )
         return self.get_approval(approval_id)
 
@@ -107,7 +134,7 @@ class SQLiteStore:
             ).fetchone()
         if row is None:
             raise KeyError(f"Approval {approval_id!r} was not found")
-        return ApprovalRecord(
+        record = ApprovalRecord(
             approval_id=row["approval_id"],
             request_id=row["request_id"],
             action_type=row["action_type"],
@@ -116,7 +143,32 @@ class SQLiteStore:
             approved_by=row["approved_by"],
             created_at=datetime.fromisoformat(row["created_at"]),
             updated_at=datetime.fromisoformat(row["updated_at"]),
+            expires_at=datetime.fromisoformat(row["expires_at"]),
         )
+        if record.status == "PENDING" and self._now_fn() > record.expires_at:
+            record = self._expire(record)
+        return record
+
+    def _expire(self, record: ApprovalRecord) -> ApprovalRecord:
+        now = self._now_fn()
+        with self._connect() as connection:
+            connection.execute(
+                "UPDATE approvals SET status = ?, updated_at = ? WHERE approval_id = ?",
+                ("EXPIRED", now.isoformat(), record.approval_id),
+            )
+        try:
+            trace_id = self.load_case(record.approval_id)["trace_id"]
+        except KeyError:
+            trace_id = f"expiry-{record.approval_id}"
+        self.add_audit(
+            event_type="APPROVAL_EXPIRED",
+            actor="system",
+            request_id=record.request_id,
+            approval_id=record.approval_id,
+            trace_id=trace_id,
+            details={"expired_at": record.expires_at.isoformat()},
+        )
+        return record.model_copy(update={"status": "EXPIRED", "updated_at": now})
 
     def require_approved(self, approval_id: str) -> ApprovalRecord:
         record = self.get_approval(approval_id)
@@ -154,7 +206,7 @@ class SQLiteStore:
     ) -> AuditEvent:
         event = AuditEvent(
             event_id=f"EV-{uuid4().hex[:12].upper()}",
-            timestamp=_now(),
+            timestamp=self._now_fn(),
             event_type=event_type,
             actor=actor,
             request_id=request_id,
