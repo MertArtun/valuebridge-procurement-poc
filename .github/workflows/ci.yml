@@ -4,17 +4,46 @@ on:
   push:
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
-  test:
+  quality:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: python -m pip install --upgrade pip
-      - run: pip install -e '.[dev]'
-      - run: ruff check .
-      - run: pytest -q
-      - run: python scripts/verify.py
-      - run: python scripts/run_evals.py
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install project and development dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e '.[dev]'
+
+      - name: Lint
+        run: ruff check .
+
+      - name: Test
+        run: pytest -q
+
+      - name: Verify project invariants
+        run: python scripts/verify.py
+
+      - name: Run evaluation cases
+        run: python scripts/run_evals.py
+
+      - name: Archive smoke check
+        run: |
+          mkdir -p "${RUNNER_TEMP}/archive-smoke"
+          git archive --format=tar HEAD | tar -x -C "${RUNNER_TEMP}/archive-smoke"
+          python -m venv "${RUNNER_TEMP}/archive-venv"
+          cd "${RUNNER_TEMP}/archive-smoke"
+          "${RUNNER_TEMP}/archive-venv/bin/python" -m pip install --quiet '.[dev]'
+          "${RUNNER_TEMP}/archive-venv/bin/python" -m pytest -q -p no:cacheprovider
+          "${RUNNER_TEMP}/archive-venv/bin/python" scripts/verify.py

@@ -55,7 +55,7 @@
 - [x] Injection detection quarantines the document and emits an audit event.
 - [x] Evaluation cases run through a reproducible runner.
 - [x] UI displays failure, rejection, duplicate and audit-detail states.
-- [ ] `ruff check .`, `pytest -q` and `python scripts/verify.py` are clean.
+- [x] `ruff check .`, `pytest -q` and `python scripts/verify.py` are clean.
 - [ ] Docker Compose has been executed on a Docker-capable machine.
 - [ ] README has final screenshots or a video link.
 - [ ] A 90-second demo is recorded without cuts that hide failures.
