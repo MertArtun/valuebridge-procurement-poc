@@ -70,20 +70,22 @@ def test_analysis_quarantines_supplier_attachment_and_audits_the_rule(tmp_path: 
 def test_quarantined_attachment_stays_out_of_retrieval_citations_and_explanation(
     tmp_path: Path,
 ) -> None:
-    client, _ = build_client(tmp_path / "hero", Path.cwd())
+    client, store = build_client(tmp_path / "hero", Path.cwd())
 
     body = client.post("/api/v1/requests/analyze", headers=HEADERS, json=HERO_REQUEST).json()
 
+    quarantined = {event.details["document_id"] for event in quarantine_events(store)}
+    assert quarantined == {ATTACHMENT_ID}
     documents = PolicyRepository(Path("data/documents.json")).searchable_documents(
         role="procurement_specialist"
     )
-    assert all(document.document_id != ATTACHMENT_ID for document in documents)
-    assert all(citation["document_id"] != ATTACHMENT_ID for citation in body["citations"])
+    assert all(document.document_id not in quarantined for document in documents)
+    assert all(citation["document_id"] not in quarantined for citation in body["citations"])
     assert INJECTION_TEXT not in body["explanation"]
 
 
 def test_decision_is_identical_with_and_without_injection_content(tmp_path: Path) -> None:
-    client, _ = build_client(tmp_path / "hero", Path.cwd())
+    client, store = build_client(tmp_path / "hero", Path.cwd())
     clean_client, clean_store = build_client(
         tmp_path / "clean", sanitized_project_root(tmp_path)
     )
@@ -98,4 +100,7 @@ def test_decision_is_identical_with_and_without_injection_content(tmp_path: Path
     assert with_injection["decision_status"] == without_injection["decision_status"]
     assert with_injection["blocking_reasons"] == without_injection["blocking_reasons"]
     assert with_injection == without_injection
+    assert [event.details["rule_id"] for event in quarantine_events(store)] == [
+        "INSTRUCTION_OVERRIDE_TR"
+    ]
     assert quarantine_events(clean_store) == []

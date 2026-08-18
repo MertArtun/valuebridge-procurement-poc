@@ -23,11 +23,11 @@ System claims must come from executable tests or a controlled pilot, not from ma
 
 ### Evaluation cases
 
-`evals/` contains machine-readable cases intended for a later runner. Cases cover policy decisions, authorization, prompt injection, stale policy and idempotency.
+`evals/` contains frozen machine-readable cases. `app/evaluation.py` executes them through `scripts/run_evals.py` (`make evals`) and writes `reports/evaluation.json`. Cases cover policy decisions, authorization, prompt injection, stale policy and idempotency.
 
 ## Oracle separation
 
-The application reads `data/policy_rules.yaml`. Evaluation tooling reads `evals/policy_oracle.yaml`. The runner calculates expected behavior independently from application return values.
+The application reads `data/policy_rules.yaml`. Evaluation tooling reads `evals/policy_oracle.yaml`. The runner calculates expected behavior independently from application return values. A frozen case whose `expected` block contradicts the oracle fails as dataset drift.
 
 ## Discovery evaluation
 
@@ -78,6 +78,7 @@ These are `NOT_MEASURED` in the starter:
 ```bash
 pytest -q
 python scripts/verify.py
+python scripts/run_evals.py
 ruff check .
 ```
 

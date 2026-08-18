@@ -8,6 +8,7 @@ const executeButton = document.querySelector('#execute-button');
 const auditButton = document.querySelector('#audit-button');
 const approvalStatus = document.querySelector('#approval-status');
 let approvalId = null;
+let analysisTraceId = null;
 
 const headers = (role, user) => ({
   'Content-Type': 'application/json',
@@ -36,6 +37,16 @@ function showBanner(selector, message) {
 
 function hideBanner(selector) {
   document.querySelector(selector).classList.add('hidden');
+}
+
+function clearAnalysisResult() {
+  approvalId = null;
+  analysisTraceId = null;
+  analysisCard.classList.add('hidden');
+  approvalCard.classList.add('hidden');
+  approveButton.disabled = true;
+  rejectButton.disabled = true;
+  executeButton.disabled = true;
 }
 
 function errorMessage(body) {
@@ -71,19 +82,23 @@ form.addEventListener('submit', async (event) => {
     body = await response.json();
   } catch (networkError) {
     hideBanner('#analysis-loading');
+    clearAnalysisResult();
     statusBadge.textContent = 'HATA';
     showBanner('#analysis-error', `Sunucuya ulaşılamadı: ${networkError.message}`);
     return;
   }
   hideBanner('#analysis-loading');
   if (!response.ok) {
+    clearAnalysisResult();
     statusBadge.textContent = 'HATA';
     showBanner('#analysis-error', errorMessage(body));
     return;
   }
 
   approvalId = body.approval.approval_id;
+  analysisTraceId = body.trace_id;
   approvalStatus.textContent = APPROVAL_LABELS[body.approval.status] || body.approval.status;
+  hideBanner('#security-notice');
   hideBanner('#execution-success');
   hideBanner('#duplicate-notice');
   hideBanner('#action-error');
@@ -225,7 +240,8 @@ async function refreshAudit() {
 }
 
 function renderSecurityNotice(events) {
-  const quarantined = events.filter((item) => item.event_type === 'SECURITY_CONTENT_QUARANTINED');
+  const quarantined = events.filter((item) => item.event_type === 'SECURITY_CONTENT_QUARANTINED'
+    && item.trace_id === analysisTraceId);
   if (!quarantined.length) {
     hideBanner('#security-notice');
     return;

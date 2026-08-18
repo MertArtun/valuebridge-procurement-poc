@@ -87,6 +87,35 @@ def test_write_report_stores_the_report_as_json(tmp_path: Path) -> None:
     assert json.loads(output_path.read_text(encoding="utf-8")) == report
 
 
+def test_case_whose_frozen_expectation_contradicts_the_oracle_fails(tmp_path: Path) -> None:
+    _, oracle_path = _temporary_suite(tmp_path)
+    drifted_path = tmp_path / "drifted_cases.jsonl"
+    drifted_path.write_text(
+        json.dumps(_temporary_case("POL-T3", "600000", False), ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+
+    report = run_evaluation(
+        [drifted_path], oracle_path=oracle_path, policy_rules_path=PROJECT_RULES
+    )
+
+    assert report["counts"] == {"passed": 0, "failed": 1}
+    assert "finance_approval_required" in report["cases"][0]["reason"]
+
+
+def test_case_without_expected_fields_fails(tmp_path: Path) -> None:
+    _, oracle_path = _temporary_suite(tmp_path)
+    empty_path = tmp_path / "empty_cases.jsonl"
+    case = _temporary_case("POL-T4", "600000", True)
+    case["expected"] = {}
+    empty_path.write_text(json.dumps(case, ensure_ascii=False) + "\n", encoding="utf-8")
+
+    report = run_evaluation([empty_path], oracle_path=oracle_path, policy_rules_path=PROJECT_RULES)
+
+    assert report["counts"] == {"passed": 0, "failed": 1}
+    assert report["cases"][0]["reason"]
+
+
 def test_project_evaluation_cases_pass() -> None:
     report = run_evaluation(
         sorted(Path("evals").glob("*.jsonl")),

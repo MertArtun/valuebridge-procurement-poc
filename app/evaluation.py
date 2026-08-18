@@ -3,7 +3,8 @@
 Expected outcomes are derived here from ``evals/policy_oracle.yaml``, never from
 the values the application components return. Security cases are not
 parameterized by the oracle file, so their frozen ``expected`` block is the
-oracle for those cases.
+oracle for those cases. A case whose frozen ``expected`` block contradicts the
+oracle fails as dataset drift, so corrupted cases can never report ``PASSED``.
 """
 
 from __future__ import annotations
@@ -84,10 +85,17 @@ class _CaseRunner:
     def run(self, case: dict[str, Any]) -> dict[str, Any]:
         try:
             expected, actual = self._execute(case)
-            fields = list(case["expected"])
+            frozen = dict(case["expected"])
+            if not frozen:
+                raise ValueError("Case declares no expected fields")
+            fields = list(frozen)
             expected = {field: expected[field] for field in fields}
             actual = {field: actual[field] for field in fields}
             differences = [
+                f"{field}: frozen case {frozen[field]!r}, oracle {expected[field]!r}"
+                for field in fields
+                if frozen[field] != expected[field]
+            ] + [
                 f"{field}: expected {expected[field]!r}, actual {actual[field]!r}"
                 for field in fields
                 if expected[field] != actual[field]

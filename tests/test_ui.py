@@ -62,12 +62,34 @@ def test_home_labels_pending_failure_duplicate_and_quarantine_states(tmp_path: P
 def test_state_regions_are_announced_and_hidden_until_used(tmp_path: Path) -> None:
     html = _client(tmp_path).get("/").text
 
-    for line in html.splitlines():
-        if 'class="state-banner' not in line:
-            continue
+    banners = [line for line in html.splitlines() if 'class="state-banner' in line]
+    assert len(banners) == 6, banners
+    for line in banners:
         assert 'role="status"' in line or 'role="alert"' in line, line
         assert "hidden" in line, line
     assert 'aria-live="polite"' in html
+
+
+def test_security_notice_is_scoped_to_the_analysed_request(tmp_path: Path) -> None:
+    script = _client(tmp_path).get("/static/app.js").text
+
+    assert "analysisTraceId = body.trace_id" in script
+    assert "item.trace_id === analysisTraceId" in script
+
+
+def test_failed_analysis_clears_the_stale_decision_and_approval(tmp_path: Path) -> None:
+    script = _client(tmp_path).get("/static/app.js").text
+    submit_handler = script.split("form.addEventListener", 1)[1].split("async function", 1)[0]
+    reset = script.split("function clearAnalysisResult() {", 1)[-1].split("\n}", 1)[0]
+
+    assert submit_handler.count("clearAnalysisResult();") == 2, submit_handler
+    assert "approvalId = null" in reset
+    assert "analysisTraceId = null" in reset
+    assert "approveButton.disabled = true" in reset
+    assert "rejectButton.disabled = true" in reset
+    assert "executeButton.disabled = true" in reset
+    assert "analysisCard.classList.add('hidden')" in reset
+    assert "approvalCard.classList.add('hidden')" in reset
 
 
 def test_audit_drawer_reveals_details_json_and_trace_id_on_interaction(tmp_path: Path) -> None:
