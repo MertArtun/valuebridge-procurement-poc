@@ -5,7 +5,7 @@ from uuid import uuid4
 
 from app.analysis import analyze_purchase_history
 from app.data import load_supplier
-from app.mockdesk_client import MockDeskGateway
+from app.mockdesk_client import MockDeskGateway, MockDeskUnavailableError
 from app.models import (
     ActionPreview,
     AnalysisResponse,
@@ -181,10 +181,21 @@ class ProcurementService:
         case = self.store.load_case(approval_id)
         request_id = approval.request_id
         payload, idempotency_key = self._build_action(request_id, case)
-        result = self.mockdesk_gateway.create_ticket(
-            payload,
-            idempotency_key=idempotency_key,
-        )
+        try:
+            result = self.mockdesk_gateway.create_ticket(
+                payload,
+                idempotency_key=idempotency_key,
+            )
+        except MockDeskUnavailableError as exc:
+            self.store.add_audit(
+                event_type="TOOL_EXECUTION_FAILED",
+                actor=user,
+                request_id=request_id,
+                approval_id=approval_id,
+                trace_id=case["trace_id"],
+                details={"error": str(exc), "idempotency_key": idempotency_key},
+            )
+            raise
         self.store.add_audit(
             event_type="TOOL_EXECUTED",
             actor=user,

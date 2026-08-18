@@ -10,7 +10,7 @@ from fastapi.templating import Jinja2Templates
 from starlette.requests import Request
 
 from app.approvals import ApprovalRequiredError, InvalidApprovalStateError
-from app.mockdesk_client import HttpMockDeskGateway
+from app.mockdesk_client import HttpMockDeskGateway, MockDeskUnavailableError
 from app.models import (
     ActionPreview,
     AnalysisResponse,
@@ -52,6 +52,10 @@ def create_app(service: ProcurementService | None = None) -> FastAPI:
     @app.exception_handler(InvalidApprovalStateError)
     async def invalid_approval_state(_request: Request, exc: InvalidApprovalStateError):
         return _json_error(409, "INVALID_APPROVAL_STATE", str(exc), retryable=False)
+
+    @app.exception_handler(MockDeskUnavailableError)
+    async def mockdesk_unavailable(_request: Request, exc: MockDeskUnavailableError):
+        return _json_error(502, "MOCKDESK_UNAVAILABLE", str(exc), retryable=True)
 
     @app.get("/health")
     def health() -> dict[str, str]:
