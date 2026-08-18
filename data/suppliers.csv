@@ -1,0 +1,9 @@
+supplier_name,quality_score,iso_9001_expiry_date,status,risk_flag
+Atlas Endüstri,82,2026-06-30,active,certificate_expired
+Ege Parça,91,2027-03-31,active,none
+Mavi Teknik,76,2026-12-31,active,watchlist
+Kuzey Makina,88,2027-01-15,active,none
+Delta Endüstri,69,2026-09-30,active,quality_review
+Nova Rulman,94,2027-06-30,active,none
+Bora Otomasyon,85,2026-11-30,active,none
+Yıldız Metal,79,2026-10-31,active,watchlist

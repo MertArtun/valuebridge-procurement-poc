@@ -1,0 +1,1 @@
+"""MockDesk integration service."""

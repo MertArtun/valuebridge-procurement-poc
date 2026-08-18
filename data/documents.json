@@ -1,0 +1,54 @@
+[
+  {
+    "document_id": "PROC-POL-2025",
+    "title": "EgeMekanik Satın Alma Politikası",
+    "version": "2025.2",
+    "status": "SUPERSEDED",
+    "document_type": "PROCUREMENT_POLICY",
+    "effective_from": "2025-01-01",
+    "effective_to": "2025-12-31",
+    "superseded_by": "PROC-POL-2026",
+    "allowed_roles": ["procurement_specialist", "finance_approver", "auditor", "solution_engineer"],
+    "file_path": "data/procurement_policy_2025_superseded.md",
+    "trusted_for_retrieval": true
+  },
+  {
+    "document_id": "PROC-POL-2026",
+    "title": "EgeMekanik Satın Alma Politikası",
+    "version": "2026.1",
+    "status": "CURRENT",
+    "document_type": "PROCUREMENT_POLICY",
+    "effective_from": "2026-01-01",
+    "effective_to": null,
+    "superseded_by": null,
+    "allowed_roles": ["procurement_specialist", "finance_approver", "auditor", "solution_engineer"],
+    "file_path": "data/procurement_policy_2026_current.md",
+    "trusted_for_retrieval": true
+  },
+  {
+    "document_id": "SUP-COMP-2026",
+    "title": "EgeMekanik Tedarikçi Uyum Politikası",
+    "version": "2026.1",
+    "status": "CURRENT",
+    "document_type": "SUPPLIER_COMPLIANCE_POLICY",
+    "effective_from": "2026-01-01",
+    "effective_to": null,
+    "superseded_by": null,
+    "allowed_roles": ["procurement_specialist", "finance_approver", "auditor", "solution_engineer"],
+    "file_path": "data/supplier_compliance_policy.md",
+    "trusted_for_retrieval": true
+  },
+  {
+    "document_id": "ATLAS-ATTACH-2026-08",
+    "title": "Atlas Endüstri Tedarikçi Eki",
+    "version": "1",
+    "status": "RECEIVED",
+    "document_type": "SUPPLIER_ATTACHMENT",
+    "effective_from": "2026-08-01",
+    "effective_to": null,
+    "superseded_by": null,
+    "allowed_roles": ["procurement_specialist", "finance_approver", "auditor", "solution_engineer"],
+    "file_path": "data/supplier_attachment_untrusted.md",
+    "trusted_for_retrieval": false
+  }
+]

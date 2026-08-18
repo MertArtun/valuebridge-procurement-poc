@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ValueBridge — Procurement Exception Agent</title>
+  <link rel="stylesheet" href="/static/app.css">
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+  <main class="shell">
+    <header class="hero">
+      <p class="eyebrow">Forward-Deployed Solution Engineering Case Study</p>
+      <h1>ValueBridge</h1>
+      <p class="lede">Kurgusal bir satın alma istisna sürecini güncel politika, deterministik analiz, insan onayı ve denetlenebilir aksiyonla yönetir.</p>
+      <div class="notice">Bağımsız portföy çalışmasıdır; gerçek SKYMOD ürünü veya müşteri uygulaması değildir.</div>
+    </header>
+
+    <section class="process card">
+      <h2>Süreçten Çözüme</h2>
+      <div class="flow">
+        <span>Process Discovery</span><b>→</b><span>Current Policy</span><b>→</b><span>Deterministic Decision</span><b>→</b><span>Human Approval</span><b>→</b><span>MockDesk</span><b>→</b><span>Audit</span>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="section-heading">
+        <div>
+          <p class="step">01</p>
+          <h2>Kahraman Talep</h2>
+        </div>
+        <span class="status" id="workflow-status">ANALİZE HAZIR</span>
+      </div>
+      <form id="request-form" class="form-grid">
+        <label>Talep Kimliği<input name="request_id" value="{{ hero.request_id }}"></label>
+        <label>Talep Tarihi<input name="request_date" type="date" value="{{ hero.request_date }}"></label>
+        <label>Tedarikçi<input name="supplier_name" value="{{ hero.supplier_name }}"></label>
+        <label>Kategori<input name="category" value="{{ hero.category }}"></label>
+        <label>Tutar (TL)<input name="amount_try" type="number" value="{{ hero.amount_try }}"></label>
+        <label>Mevcut Teklif<input name="received_quotes" type="number" value="{{ hero.received_quotes }}"></label>
+        <label>Teklif Edilen Teslim (gün)<input name="offered_lead_time_days" type="number" value="{{ hero.offered_lead_time_days }}"></label>
+        <button class="primary" type="submit">Talebi Analiz Et</button>
+      </form>
+    </section>
+
+    <section class="card hidden" id="analysis-card">
+      <div class="section-heading"><div><p class="step">02</p><h2>Analiz ve Kaynaklar</h2></div></div>
+      <div id="analysis-summary" class="metric-grid"></div>
+      <div class="two-column">
+        <div>
+          <h3>Karar Gerekçeleri</h3>
+          <ul id="decision-reasons"></ul>
+        </div>
+        <div>
+          <h3>Kullanılan Kaynaklar</h3>
+          <div id="citations"></div>
+        </div>
+      </div>
+      <pre id="explanation"></pre>
+    </section>
+
+    <section class="card hidden" id="approval-card">
+      <div class="section-heading"><div><p class="step">03</p><h2>İnsan Onayı</h2></div></div>
+      <p>MockDesk üzerinde “Procurement Exception Review” kaydı oluşturulacaktır. Yazma işlemi finans onayı olmadan yürütülemez.</p>
+      <div class="button-row">
+        <button class="primary" id="approve-button" type="button">İnsan Onayını Ver</button>
+        <button id="execute-button" type="button" disabled>MockDesk Kaydını Oluştur</button>
+      </div>
+      <pre id="action-result"></pre>
+    </section>
+
+    <section class="card">
+      <div class="section-heading"><div><p class="step">04</p><h2>Audit Trail</h2></div><button id="audit-button" type="button">Audit'i Yenile</button></div>
+      <div id="audit-events" class="audit-list"><p>Henüz olay yok.</p></div>
+    </section>
+  </main>
+</body>
+</html>

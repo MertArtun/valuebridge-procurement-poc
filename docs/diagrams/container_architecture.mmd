@@ -1,0 +1,7 @@
+flowchart LR
+    B[Browser] --> API[FastAPI ValueBridge]
+    API --> DB[(SQLite: approvals, cases, audit)]
+    API --> FILES[CSV, JSON, Markdown policies]
+    API --> MOCK[MockDesk HTTP API]
+    MOCK --> MDB[(SQLite: tickets and idempotency)]
+    API -. optional narration .-> MODEL[Model Provider]

@@ -1,0 +1,13 @@
+version: "oracle-2026.1"
+finance_approval:
+  threshold_try: 200000
+  comparison: greater_than
+alternative_quotes:
+  threshold_try: 100000
+  minimum_quotes: 2
+supplier_certificate:
+  must_be_valid_on_request_date: true
+write_action:
+  approval_required: true
+idempotency:
+  duplicate_ticket_allowed: false

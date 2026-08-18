@@ -1,0 +1,3 @@
+{"case_id":"IDEM-001","description":"First request creates one ticket","input":{"key":"PR-2026-0042-PROCUREMENT-REVIEW","attempt":1},"expected":{"ticket_count":1,"status":"OPEN"},"severity":"HIGH"}
+{"case_id":"IDEM-002","description":"Second request returns original ticket","input":{"key":"PR-2026-0042-PROCUREMENT-REVIEW","attempt":2},"expected":{"ticket_count":1,"status":"ALREADY_PROCESSED"},"severity":"CRITICAL"}
+{"case_id":"IDEM-003","description":"Different request key creates a distinct ticket","input":{"key":"PR-2026-0043-PROCUREMENT-REVIEW","attempt":1},"expected":{"ticket_count":2,"status":"OPEN"},"severity":"MEDIUM"}

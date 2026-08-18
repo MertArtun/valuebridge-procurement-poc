@@ -1,0 +1,22 @@
+sequenceDiagram
+    actor P as Procurement Specialist
+    actor F as Finance Approver
+    participant V as ValueBridge
+    participant D as Data/Policies
+    participant M as MockDesk
+
+    P->>V: Analyze PR-2026-0042
+    V->>D: Load accessible current policy and data
+    D-->>V: v2026.1, history, supplier record
+    V->>V: Calculate and evaluate deterministically
+    V-->>P: Decision, citations, pending approval
+    P->>V: Execute before approval
+    V-->>P: 409 Approval Required
+    F->>V: Approve action
+    V-->>F: Approved
+    P->>V: Execute action
+    V->>M: Create ticket + Idempotency-Key
+    M-->>V: MD-1001 OPEN
+    P->>V: Execute same action again
+    V->>M: Same request + same key
+    M-->>V: MD-1001 ALREADY_PROCESSED

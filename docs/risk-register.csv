@@ -1,0 +1,16 @@
+id,risk,probability,impact,trigger,mitigation,contingency,status
+R-001,Scope creep,HIGH,HIGH,New infrastructure before core gate,Enforce non-goals and backlog gates,Revert to application-ready checklist,OPEN
+R-002,Demo nondeterminism,MEDIUM,HIGH,External model changes output,Keep credential-free deterministic default,Use recorded deterministic flow,OPEN
+R-003,Stale policy selected,LOW,HIGH,Effective-date filter regression,Automated version tests,Block decision on ambiguity,CONTROLLED
+R-004,Duplicate ticket,LOW,HIGH,Retry without same key,Receiver-side unique idempotency key,Return original ticket,CONTROLLED
+R-005,Approval bypass,LOW,CRITICAL,UI or endpoint skips store check,Server-side approval invariant,Return 409 and audit,CONTROLLED
+R-006,Prompt injection bypass,MEDIUM,HIGH,Untrusted content enters context,Trust classification and quarantine,Remove document and block action,OPEN
+R-007,Fake metrics,MEDIUM,HIGH,README edited manually,Generate metrics only from runner,Remove unsupported claim,OPEN
+R-008,Synthetic data inconsistency,MEDIUM,MEDIUM,Constants drift across files,Verification script and tests,Restore authoritative values,CONTROLLED
+R-009,Docker configuration failure,MEDIUM,MEDIUM,First run on Docker machine,Keep native startup path,Patch compose before demo,OPEN
+R-010,SkyStudio overclaim,LOW,HIGH,Blueprint described as live,Fixed limitation language,Remove integration claim,CONTROLLED
+R-011,UI polish delays core,HIGH,MEDIUM,Styling work before tests,Task ordering and gate,Ship functional UI,OPEN
+R-012,Circular evaluation,MEDIUM,HIGH,Runtime reads expected results,Separate oracle and runtime config,Document limitation,OPEN
+R-013,Credential leakage,LOW,CRITICAL,Secrets committed,No core credentials and gitignore,Rotate and purge history,CONTROLLED
+R-014,Insufficient audit detail,MEDIUM,MEDIUM,Failure cannot be reconstructed,Audit schema and tests,Add event before release,OPEN
+R-015,Job closes before project completion,HIGH,HIGH,Listing disappears,Apply before project is finished,Send project as follow-up,MITIGATED

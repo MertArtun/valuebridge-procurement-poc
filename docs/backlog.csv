@@ -1,0 +1,23 @@
+id,epic,title,priority,story_points,depends_on,core_or_optional,status
+VB-001,Evidence,Add supplier compliance citation,P0,2,,core,READY
+VB-002,Approval,Typed action preview endpoint,P0,3,VB-001,core,READY
+VB-003,Approval,Approval rejection state,P0,2,VB-002,core,READY
+VB-004,Approval,Approval expiry state,P1,3,VB-002,core,READY
+VB-005,Integration,HTTP retry and backoff,P0,5,VB-002,core,READY
+VB-006,Security,Quarantine untrusted content,P0,3,VB-001,core,READY
+VB-007,Security,Audit authorization denials,P1,2,VB-006,core,READY
+VB-008,Evaluation,JSONL evaluation runner,P0,5,VB-001,core,READY
+VB-009,Evaluation,Citation evaluation cases,P1,3,VB-008,core,READY
+VB-010,Evaluation,Stale-policy evaluation cases,P1,2,VB-008,core,READY
+VB-011,UI,Action preview component,P0,3,VB-002,core,READY
+VB-012,UI,Failure and retry states,P1,3,VB-005,core,READY
+VB-013,UI,Audit event detail drawer,P1,3,VB-007,core,READY
+VB-014,Quality,Ruff clean-up,P0,2,,core,READY
+VB-015,Quality,Docker execution verification,P0,2,VB-014,core,READY
+VB-016,Docs,Final README screenshots,P1,2,VB-011,core,READY
+VB-017,Application,Record 90-second demo,P0,3,VB-015;VB-016,core,READY
+VB-018,Application,Finalize outreach messages,P0,1,VB-017,core,READY
+VB-019,Provider,Template narrator fallback,P2,2,,optional,READY
+VB-020,Provider,OpenAI-compatible narrator,P3,5,VB-019,optional,READY
+VB-021,SkyStudio,Authorized workflow validation,P3,8,VB-017,optional,BLOCKED_BY_ACCESS
+VB-022,Data,PostgreSQL repository adapter,P3,8,VB-017,optional,READY
