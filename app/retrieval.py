@@ -26,6 +26,18 @@ class PolicyRepository:
             documents.append(self._load_document(entry))
         return documents
 
+    def untrusted_attachments(self, supplier_name: str) -> list[tuple[str, str]]:
+        """Return (document_id, raw text) pairs for a supplier's untrusted attachments."""
+        attachments: list[tuple[str, str]] = []
+        for entry in self._entries:
+            if entry.get("trusted_for_retrieval", False):
+                continue
+            if entry.get("supplier_name") != supplier_name:
+                continue
+            file_path = self._project_root / str(entry["file_path"])
+            attachments.append((str(entry["document_id"]), file_path.read_text(encoding="utf-8")))
+        return attachments
+
     def current_policy(self, policy_type: str, on_date: date, role: str) -> PolicyDocument:
         candidates: list[PolicyDocument] = []
         for document in self.searchable_documents(role):

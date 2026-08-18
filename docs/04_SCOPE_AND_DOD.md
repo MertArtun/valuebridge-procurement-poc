@@ -52,7 +52,7 @@
 - [x] Action preview has a typed response model and endpoint.
 - [x] Approval rejection and expiry are implemented and tested.
 - [x] MockDesk HTTP retry/backoff behavior is tested for transient errors.
-- [ ] Injection detection quarantines the document and emits an audit event.
+- [x] Injection detection quarantines the document and emits an audit event.
 - [ ] Evaluation cases run through a reproducible runner.
 - [ ] UI displays failure, rejection, duplicate and audit-detail states.
 - [ ] `ruff check .`, `pytest -q` and `python scripts/verify.py` are clean.

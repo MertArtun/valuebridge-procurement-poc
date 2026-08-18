@@ -16,7 +16,7 @@ from app.models import (
 from app.narrator import explain_decision
 from app.policy_engine import PolicyEngine
 from app.retrieval import PolicyRepository
-from app.security import authorize
+from app.security import authorize, matched_injection_rule
 from app.store import SQLiteStore
 
 
@@ -65,6 +65,7 @@ class ProcurementService:
             trace_id=trace_id,
             details={"amount_try": str(request.amount_try)},
         )
+        self._quarantine_untrusted_attachments(request, trace_id)
         supplier = load_supplier(self.suppliers_path, request.supplier_name)
         analysis = analyze_purchase_history(request, self.purchase_history_path)
         policy = self.policy_repository.current_policy(
@@ -124,6 +125,20 @@ class ProcurementService:
                 details=details,
             )
         return response
+
+    def _quarantine_untrusted_attachments(self, request: PurchaseRequest, trace_id: str) -> None:
+        attachments = self.policy_repository.untrusted_attachments(request.supplier_name)
+        for document_id, content in attachments:
+            rule_id = matched_injection_rule(content)
+            if rule_id is None:
+                continue
+            self.store.add_audit(
+                event_type="SECURITY_CONTENT_QUARANTINED",
+                actor="system",
+                request_id=request.request_id,
+                trace_id=trace_id,
+                details={"document_id": document_id, "rule_id": rule_id},
+            )
 
     def approve(self, approval_id: str, *, role: str, user: str):
         record = self.store.approve(approval_id, approved_by=user, approver_role=role)

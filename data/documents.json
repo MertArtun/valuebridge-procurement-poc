@@ -44,6 +44,7 @@
     "version": "1",
     "status": "RECEIVED",
     "document_type": "SUPPLIER_ATTACHMENT",
+    "supplier_name": "Atlas Endüstri",
     "effective_from": "2026-08-01",
     "effective_to": null,
     "superseded_by": null,

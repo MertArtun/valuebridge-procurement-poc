@@ -15,16 +15,16 @@ _ACTION_ROLES: dict[str, set[str]] = {
     "read_audit": {"auditor", "solution_engineer", "finance_approver"},
 }
 
-_INJECTION_PATTERNS = [
-    re.compile(pattern, re.IGNORECASE)
-    for pattern in (
-        r"önceki\s+(tüm\s+)?talimatları\s+(yok say|görmezden gel)",
-        r"ignore\s+(all\s+)?previous\s+instructions",
-        r"api\s+anahtarlarını\s+göster",
-        r"show\s+(the\s+)?api\s+keys",
-        r"system\s+(prompt|variables)",
+_INJECTION_RULES: dict[str, re.Pattern[str]] = {
+    rule_id: re.compile(pattern, re.IGNORECASE)
+    for rule_id, pattern in (
+        ("INSTRUCTION_OVERRIDE_TR", r"önceki\s+(tüm\s+)?talimatları\s+(yok say|görmezden gel)"),
+        ("INSTRUCTION_OVERRIDE_EN", r"ignore\s+(all\s+)?previous\s+instructions"),
+        ("SECRET_DISCLOSURE_TR", r"api\s+anahtarlarını\s+göster"),
+        ("SECRET_DISCLOSURE_EN", r"show\s+(the\s+)?api\s+keys"),
+        ("SYSTEM_PROMPT_PROBE", r"system\s+(prompt|variables)"),
     )
-]
+}
 
 
 def authorize(role: str, action: str) -> None:
@@ -33,5 +33,13 @@ def authorize(role: str, action: str) -> None:
         raise AuthorizationError(f"Role {role!r} is not authorized for {action!r}")
 
 
+def matched_injection_rule(text: str) -> str | None:
+    """Return the identifier of the first matching injection rule, never the matched text."""
+    for rule_id, pattern in _INJECTION_RULES.items():
+        if pattern.search(text):
+            return rule_id
+    return None
+
+
 def contains_prompt_injection(text: str) -> bool:
-    return any(pattern.search(text) for pattern in _INJECTION_PATTERNS)
+    return matched_injection_rule(text) is not None

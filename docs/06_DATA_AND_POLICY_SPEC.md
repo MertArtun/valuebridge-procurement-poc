@@ -34,6 +34,7 @@ All data is created for this portfolio project. Names, transactions, policies an
 - `allowed_roles`
 - `trusted_for_retrieval`
 - `file_path`
+- `supplier_name` for supplier attachments
 
 The application must filter by trust, role, type, status and effective date before returning document text.
 
@@ -62,7 +63,7 @@ For completed `SPARE_PARTS` records, the median must remain exactly 184,500 TRY.
 
 ## Untrusted content
 
-`data/supplier_attachment_untrusted.md` intentionally contains prompt-injection language. It may be displayed as evidence of an attempted attack but must never enter trusted policy context or alter a tool action.
+`data/supplier_attachment_untrusted.md` intentionally contains prompt-injection language. It may be displayed as evidence of an attempted attack but must never enter trusted policy context or alter a tool action. Analysis scans the requested supplier's untrusted attachments and records a `SECURITY_CONTENT_QUARANTINED` audit event with the document ID and the matched rule identifier, never the malicious text.
 
 ## Retention
 
