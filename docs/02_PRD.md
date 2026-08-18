@@ -180,6 +180,7 @@ Implemented endpoints:
 ```text
 GET  /health
 POST /api/v1/requests/analyze
+GET  /api/v1/approvals/{approval_id}/action-preview
 POST /api/v1/approvals/{approval_id}/approve
 POST /api/v1/tool-actions/{approval_id}/execute
 GET  /api/v1/audit/events
@@ -188,7 +189,6 @@ GET  /api/v1/audit/events
 Planned endpoint:
 
 ```text
-GET /api/v1/approvals/{approval_id}/action-preview
 POST /api/v1/approvals/{approval_id}/reject
 POST /api/v1/evaluations/run
 ```

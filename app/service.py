@@ -6,7 +6,13 @@ from uuid import uuid4
 from app.analysis import analyze_purchase_history
 from app.data import load_supplier
 from app.mockdesk_client import MockDeskGateway
-from app.models import AnalysisResponse, Citation, PurchaseRequest, TicketResult
+from app.models import (
+    ActionPreview,
+    AnalysisResponse,
+    Citation,
+    PurchaseRequest,
+    TicketResult,
+)
 from app.narrator import explain_decision
 from app.policy_engine import PolicyEngine
 from app.retrieval import PolicyRepository
@@ -132,19 +138,39 @@ class ProcurementService:
         )
         return record
 
+    def action_preview(self, approval_id: str, *, role: str) -> ActionPreview:
+        authorize(role, "view_action_preview")
+        approval = self.store.get_approval(approval_id)
+        case = self.store.load_case(approval_id)
+        payload, idempotency_key = self._build_action(approval.request_id, case)
+        return ActionPreview(
+            approval_id=approval.approval_id,
+            target_system="MOCKDESK",
+            operation=approval.action_type,
+            idempotency_key=idempotency_key,
+            payload=payload,
+            required_role="finance_approver",
+        )
+
+    @staticmethod
+    def _build_action(request_id: str, case: dict) -> tuple[dict[str, object], str]:
+        payload: dict[str, object] = {
+            "request_id": request_id,
+            "summary": "Procurement Exception Review",
+            "decision_status": case["decision"]["decision_status"],
+            "reasons": case["decision"]["blocking_reasons"],
+        }
+        return payload, f"{request_id}-PROCUREMENT-REVIEW"
+
     def execute(self, approval_id: str, *, role: str, user: str) -> TicketResult:
         authorize(role, "execute_tool_action")
         approval = self.store.require_approved(approval_id)
         case = self.store.load_case(approval_id)
         request_id = approval.request_id
+        payload, idempotency_key = self._build_action(request_id, case)
         result = self.mockdesk_gateway.create_ticket(
-            {
-                "request_id": request_id,
-                "summary": "Procurement Exception Review",
-                "decision_status": case["decision"]["decision_status"],
-                "reasons": case["decision"]["blocking_reasons"],
-            },
-            idempotency_key=f"{request_id}-PROCUREMENT-REVIEW",
+            payload,
+            idempotency_key=idempotency_key,
         )
         self.store.add_audit(
             event_type="TOOL_EXECUTED",

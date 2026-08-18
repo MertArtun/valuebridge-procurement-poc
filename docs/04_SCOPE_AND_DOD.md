@@ -49,7 +49,7 @@
 ## Application-ready gate
 
 - [x] Supplier compliance policy appears as a separate citation.
-- [ ] Action preview has a typed response model and endpoint.
+- [x] Action preview has a typed response model and endpoint.
 - [ ] Approval rejection and expiry are implemented and tested.
 - [ ] MockDesk HTTP retry/backoff behavior is tested for transient errors.
 - [ ] Injection detection quarantines the document and emits an audit event.

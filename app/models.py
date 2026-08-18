@@ -101,6 +101,15 @@ class TicketResult(ApiModel):
     duplicate_created: bool = False
 
 
+class ActionPreview(ApiModel):
+    approval_id: str
+    target_system: str
+    operation: str
+    idempotency_key: str
+    payload: dict[str, object]
+    required_role: str
+
+
 class AnalysisResponse(ApiModel):
     request: PurchaseRequest
     supplier: SupplierRecord

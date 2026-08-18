@@ -10,6 +10,7 @@ class AuthorizationError(PermissionError):
 _ACTION_ROLES: dict[str, set[str]] = {
     "analyze_request": {"procurement_specialist", "solution_engineer"},
     "approve_finance_action": {"finance_approver"},
+    "view_action_preview": {"procurement_specialist", "finance_approver", "solution_engineer"},
     "execute_tool_action": {"procurement_specialist", "solution_engineer"},
     "read_audit": {"auditor", "solution_engineer", "finance_approver"},
 }

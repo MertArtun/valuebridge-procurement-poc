@@ -11,7 +11,13 @@ from starlette.requests import Request
 
 from app.approvals import ApprovalRequiredError
 from app.mockdesk_client import HttpMockDeskGateway
-from app.models import AnalysisResponse, ApprovalRecord, PurchaseRequest, TicketResult
+from app.models import (
+    ActionPreview,
+    AnalysisResponse,
+    ApprovalRecord,
+    PurchaseRequest,
+    TicketResult,
+)
 from app.service import ProcurementService
 from app.store import SQLiteStore
 from app.security import AuthorizationError
@@ -72,6 +78,18 @@ def create_app(service: ProcurementService | None = None) -> FastAPI:
         x_demo_user: str = Header(alias="X-Demo-User"),
     ) -> AnalysisResponse:
         return app.state.service.analyze(payload, role=x_demo_role, user=x_demo_user)
+
+    @app.get("/api/v1/approvals/{approval_id}/action-preview", response_model=ActionPreview)
+    def action_preview(
+        approval_id: str,
+        x_demo_role: str = Header(alias="X-Demo-Role"),
+        x_demo_user: str = Header(alias="X-Demo-User"),
+    ) -> ActionPreview:
+        del x_demo_user
+        try:
+            return app.state.service.action_preview(approval_id, role=x_demo_role)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
 
     @app.post("/api/v1/approvals/{approval_id}/approve", response_model=ApprovalRecord)
     def approve(

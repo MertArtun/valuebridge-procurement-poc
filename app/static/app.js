@@ -54,8 +54,28 @@ form.addEventListener('submit', async (event) => {
   approvalCard.classList.remove('hidden');
   approveButton.disabled = false;
   executeButton.disabled = true;
+  await renderActionPreview();
   await refreshAudit();
 });
+
+async function renderActionPreview() {
+  const container = document.querySelector('#action-preview');
+  const response = await fetch(`/api/v1/approvals/${approvalId}/action-preview`, {
+    headers: headers('procurement_specialist', 'procurement_user'),
+  });
+  const preview = await response.json();
+  if (!response.ok) {
+    container.innerHTML = `<pre>${JSON.stringify(preview, null, 2)}</pre>`;
+    return;
+  }
+  container.innerHTML = `
+    <h3>Gönderilecek Aksiyon</h3>
+    <div class="metric"><span>Hedef Sistem</span><strong>${preview.target_system}</strong></div>
+    <div class="metric"><span>Operasyon</span><strong>${preview.operation}</strong></div>
+    <div class="metric"><span>Idempotency Anahtarı</span><strong>${preview.idempotency_key}</strong></div>
+    <div class="metric"><span>Gereken Onay Rolü</span><strong>${preview.required_role}</strong></div>
+    <pre>${JSON.stringify(preview.payload, null, 2)}</pre>`;
+}
 
 approveButton.addEventListener('click', async () => {
   const response = await fetch(`/api/v1/approvals/${approvalId}/approve`, {
