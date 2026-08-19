@@ -10,6 +10,7 @@ from fastapi.templating import Jinja2Templates
 from starlette.requests import Request
 
 from app.errors import ValueBridgeError
+from app.metrics import summarize
 from app.mockdesk_client import HttpMockDeskGateway
 from app.models import (
     ActionPreview,
@@ -163,6 +164,15 @@ def create_app(service: ProcurementService | None = None) -> FastAPI:
         del x_demo_user
         authorize(x_demo_role, "read_audit")
         return resolve_service().store.list_audit()
+
+    @app.get("/api/v1/metrics/summary")
+    def metrics_summary(
+        x_demo_role: str = Header(alias="X-Demo-Role"),
+        x_demo_user: str = Header(alias="X-Demo-User"),
+    ):
+        del x_demo_user
+        authorize(x_demo_role, "read_audit")
+        return summarize(resolve_service().store.list_audit())
 
     return app
 

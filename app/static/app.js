@@ -280,6 +280,42 @@ executeButton.addEventListener('click', async () => {
 
 auditButton.addEventListener('click', refreshAudit);
 
+const metricsButton = document.querySelector('#metrics-button');
+
+async function refreshMetrics() {
+  const container = document.querySelector('#metrics-summary');
+  let response;
+  let summary;
+  try {
+    response = await fetch('/api/v1/metrics/summary', {
+      headers: headers('solution_engineer', 'solution_engineer'),
+    });
+    summary = await response.json();
+  } catch (metricsError) {
+    container.replaceChildren(createElement('p', { text: 'Metrikler alınamadı.' }));
+    return;
+  }
+  if (!response.ok) {
+    container.replaceChildren(createElement('pre', { text: JSON.stringify(summary, null, 2) }));
+    return;
+  }
+  const cycle = summary.median_cycle_time_seconds;
+  container.replaceChildren(
+    ...renderMetrics([
+      ['Toplam Analiz', summary.analyses_total],
+      ['Koşullu İnceleme', summary.decisions.CONDITIONAL_REVIEW],
+      ['Reddedilen Talep', summary.decisions.REJECTED],
+      ['Açılan Kayıt', summary.tickets_created],
+      ['Önlenen Duplicate', summary.duplicates_prevented],
+      ['Karantina', summary.quarantined_attachments],
+      ['Engellenen Deneme', summary.denied_or_blocked_actions],
+      ['Medyan Çevrim (sn)', cycle === null ? '—' : cycle],
+    ]),
+  );
+}
+
+metricsButton.addEventListener('click', refreshMetrics);
+
 function auditEventNode(item) {
   const details = createElement('details', { className: 'audit-event' });
   const summary = createElement('summary');
@@ -315,6 +351,7 @@ async function refreshAudit() {
     container.replaceChildren(createElement('p', { text: 'Henüz olay yok.' }));
   }
   renderSecurityNotice(events);
+  await refreshMetrics();
 }
 
 function renderSecurityNotice(events) {
