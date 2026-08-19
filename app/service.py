@@ -80,6 +80,16 @@ def _strip_code_fences(completion: str) -> str:
     return "\n".join(lines[1:]).strip()
 
 
+def parse_intake_draft(completion: str) -> PurchaseRequestDraft:
+    """Turn a raw intake completion into a validated draft."""
+    try:
+        return PurchaseRequestDraft.model_validate(json.loads(_strip_code_fences(completion)))
+    except (ValidationError, ValueError) as exc:
+        raise IntakeExtractionError(
+            "Intake assistant returned a draft that is not a valid purchase request"
+        ) from exc
+
+
 class ProcurementService:
     def __init__(
         self,
@@ -283,14 +293,11 @@ class ProcurementService:
             self._audit_intake_failure(exc.code, user=user, trace_id=trace_id)
             raise
         try:
-            draft = PurchaseRequestDraft.model_validate(json.loads(_strip_code_fences(completion)))
-        except (ValidationError, ValueError) as exc:
-            failure = IntakeExtractionError(
-                "Intake assistant returned a draft that is not a valid purchase request"
-            )
+            draft = parse_intake_draft(completion)
+        except IntakeExtractionError as failure:
             failure.attach_trace(trace_id)
             self._audit_intake_failure(failure.code, user=user, trace_id=trace_id)
-            raise failure from exc
+            raise
         present = [name for name in _INTAKE_FIELDS if getattr(draft, name) is not None]
         self.store.add_audit(
             event_type="INTAKE_DRAFTED",

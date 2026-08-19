@@ -13,6 +13,17 @@ These files define machine-readable regression cases. They are not measured cust
 
 Fifteen cases in total, all runnable without provider credentials.
 
+## Model quality benchmarks
+
+`benchmarks/` holds the two datasets that score a live model rather than the deterministic core. They sit in a subdirectory so the `evals/*.jsonl` glob behind `scripts/run_evals.py` and `scripts/verify.py` never picks them up.
+
+| File | Cases | What a case scores |
+|---|---:|---|
+| `benchmarks/intake_benchmark.jsonl` | 15 | Field-by-field agreement between a model's intake draft and the expected `PurchaseRequestDraft` |
+| `benchmarks/qa_benchmark.jsonl` | 15 | Top-ranked policy section, answer groundedness and abstention on out-of-corpus questions |
+
+`scripts/run_llm_benchmark.py` runs them and needs `VALUEBRIDGE_LLM_API_KEY`; see `docs/08_EVALUATION_PLAN.md`.
+
 ## Rules
 
 - Runtime application code reads `data/policy_rules.yaml`.
