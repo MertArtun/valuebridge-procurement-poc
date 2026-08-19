@@ -5,6 +5,8 @@ finance_approval:
 alternative_quotes:
   threshold_try: 100000
   minimum_quotes: 2
+supplier_status:
+  must_be_active: true
 supplier_certificate:
   required_type: ISO_9001
   must_be_valid_on_request_date: true

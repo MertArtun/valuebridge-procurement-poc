@@ -68,9 +68,7 @@ class Citation(ApiModel):
 
 
 class PolicyDecision(ApiModel):
-    decision_status: Literal[
-        "APPROVED", "CONDITIONAL_REVIEW", "REJECTED", "INSUFFICIENT_EVIDENCE"
-    ]
+    decision_status: Literal["APPROVED", "CONDITIONAL_REVIEW", "REJECTED"]
     finance_approval_required: bool
     alternative_quote_missing: bool
     certificate_status: Literal["VALID", "EXPIRED", "MISSING"]

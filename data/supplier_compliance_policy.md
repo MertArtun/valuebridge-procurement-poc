@@ -5,6 +5,10 @@
 - Durum: CURRENT
 - Geçerlilik başlangıcı: 2026-01-01
 
+## 2.1 — Tedarikçi Uygunluk Durumu
+
+Satın alma talepleri yalnızca aktif statüdeki tedarikçilerle yürütülebilir. Askıya alınmış veya pasif statüdeki bir tedarikçiye ait talep, tutarından bağımsız olarak reddedilir ve onay akışına alınmaz.
+
 ## 3.1 — Zorunlu Sertifika Geçerliliği
 
 Üretim parçası tedarikçilerinin ISO 9001 sertifikası satın alma talebi tarihinde geçerli olmalıdır. Süresi geçmiş veya eksik belge koşullu inceleme sebebidir.

@@ -132,8 +132,11 @@ class _CaseRunner:
         received_quotes = int(data["received_quotes"])
         request_date = date.fromisoformat(data["request_date"])
         certificate_expiry = date.fromisoformat(data["certificate_expiry"])
+        supplier_status = str(data.get("supplier_status", "active"))
 
-        expected = self._policy_oracle(amount, received_quotes, request_date, certificate_expiry)
+        expected = self._policy_oracle(
+            amount, received_quotes, request_date, certificate_expiry, supplier_status
+        )
         decision = self._engine.evaluate(
             request=PurchaseRequest(
                 request_id=case["case_id"],
@@ -149,7 +152,7 @@ class _CaseRunner:
                 supplier_name="Evaluation Supplier",
                 quality_score=80,
                 iso_9001_expiry_date=certificate_expiry,
-                status="active",
+                status=supplier_status,
                 risk_flag="none",
             ),
         )
@@ -167,6 +170,7 @@ class _CaseRunner:
         received_quotes: int,
         request_date: date,
         certificate_expiry: date,
+        supplier_status: str,
     ) -> dict[str, Any]:
         finance_rule = self._oracle["finance_approval"]
         if finance_rule["comparison"] != "greater_than":
@@ -183,9 +187,19 @@ class _CaseRunner:
             if self._oracle["supplier_certificate"]["must_be_valid_on_request_date"]
             else True
         )
+        supplier_rejected = (
+            bool(self._oracle.get("supplier_status", {}).get("must_be_active", False))
+            and supplier_status != "active"
+        )
         blocked = finance_required or quote_missing or not certificate_valid
+        if supplier_rejected:
+            decision_status = "REJECTED"
+        elif blocked:
+            decision_status = "CONDITIONAL_REVIEW"
+        else:
+            decision_status = "APPROVED"
         return {
-            "decision_status": "CONDITIONAL_REVIEW" if blocked else "APPROVED",
+            "decision_status": decision_status,
             "finance_approval_required": finance_required,
             "alternative_quote_missing": quote_missing,
             "certificate_status": "VALID" if certificate_valid else "EXPIRED",

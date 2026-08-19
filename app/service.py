@@ -34,6 +34,7 @@ from app.security import authorize, matched_injection_rule
 from app.store import SQLiteStore
 
 _RULE_CITATIONS: dict[str, tuple[str, str]] = {
+    "SUPPLIER_STATUS": ("SUPPLIER_COMPLIANCE_POLICY", "2.1"),
     "FINANCE_APPROVAL": ("PROCUREMENT_POLICY", "4.2"),
     "ALTERNATIVE_QUOTES": ("PROCUREMENT_POLICY", "4.3"),
     "SUPPLIER_CERTIFICATE": ("SUPPLIER_COMPLIANCE_POLICY", "3.1"),

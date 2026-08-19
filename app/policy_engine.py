@@ -27,6 +27,8 @@ class PolicyEngine:
         quote_threshold = Decimal(str(self._rules["alternative_quotes"]["threshold_try"]))
         minimum_quotes = int(self._rules["alternative_quotes"]["minimum_quotes"])
 
+        must_be_active = bool(self._rules.get("supplier_status", {}).get("must_be_active", False))
+
         finance_required = request.amount_try > finance_threshold
         quote_missing = (
             request.amount_try > quote_threshold and request.received_quotes < minimum_quotes
@@ -35,10 +37,16 @@ class PolicyEngine:
             supplier.iso_9001_expiry_date,
             request.request_date,
         )
+        supplier_ineligible = must_be_active and supplier.status != "active"
 
         reasons: list[str] = []
         warnings: list[str] = []
         rules: list[str] = []
+        if supplier_ineligible:
+            reasons.append(
+                "Tedarikçi aktif statüde değil; talep politika gereği reddedilir."
+            )
+            rules.append("SUPPLIER_STATUS")
         if finance_required:
             reasons.append("Talep tutarı finans yöneticisi onay sınırını aşıyor.")
             rules.append("FINANCE_APPROVAL")
@@ -60,7 +68,12 @@ class PolicyEngine:
                 f"{analysis.lead_time_variance_days} gün uzun."
             )
 
-        status = "CONDITIONAL_REVIEW" if reasons else "APPROVED"
+        if supplier_ineligible:
+            status = "REJECTED"
+        elif reasons:
+            status = "CONDITIONAL_REVIEW"
+        else:
+            status = "APPROVED"
         return PolicyDecision(
             decision_status=status,
             finance_approval_required=finance_required,
