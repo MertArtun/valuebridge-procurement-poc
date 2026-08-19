@@ -5,6 +5,8 @@ import json
 from pathlib import Path
 from uuid import uuid4
 
+from pydantic import ValidationError
+
 from app.analysis import analyze_purchase_history
 from app.data import load_supplier
 from app.errors import (
@@ -13,18 +15,23 @@ from app.errors import (
     ApprovalRequiredError,
     AuthorizationError,
     IdempotencyConflictError,
+    IntakeExtractionError,
     InvalidApprovalStateError,
+    LlmDisabledError,
     ValueBridgeError,
 )
+from app.llm import ChatClient, load_prompt
 from app.mockdesk_client import MockDeskGateway
 from app.models import (
     ActionPreview,
     AnalysisResponse,
     ApprovalRecord,
     Citation,
+    IntakeResponse,
     PolicyDecision,
     PolicyDocument,
     PurchaseRequest,
+    PurchaseRequestDraft,
     TicketResult,
 )
 from app.narrator import explain_decision
@@ -43,6 +50,8 @@ _RULE_CITATIONS: dict[str, tuple[str, str]] = {
 
 _CONTEXT_KEYS = ("request", "supplier", "analysis", "decision", "citations")
 
+_INTAKE_FIELDS = tuple(PurchaseRequestDraft.model_fields)
+
 
 def _case_fingerprint(context: dict[str, object]) -> str:
     canonical = json.dumps(
@@ -58,6 +67,16 @@ def _decision_context(case: dict[str, object]) -> dict[str, object]:
     return {key: case[key] for key in _CONTEXT_KEYS}
 
 
+def _strip_code_fences(completion: str) -> str:
+    text = completion.strip()
+    if not text.startswith("```"):
+        return text
+    lines = text.splitlines()
+    if lines[-1].strip() == "```":
+        lines = lines[:-1]
+    return "\n".join(lines[1:]).strip()
+
+
 class ProcurementService:
     def __init__(
         self,
@@ -68,6 +87,7 @@ class ProcurementService:
         policy_engine: PolicyEngine,
         suppliers_path: Path,
         purchase_history_path: Path,
+        chat_client: ChatClient | None = None,
     ) -> None:
         self.store = store
         self.mockdesk_gateway = mockdesk_gateway
@@ -75,6 +95,7 @@ class ProcurementService:
         self.policy_engine = policy_engine
         self.suppliers_path = suppliers_path
         self.purchase_history_path = purchase_history_path
+        self.chat_client = chat_client
 
     @classmethod
     def from_project_data(
@@ -83,6 +104,7 @@ class ProcurementService:
         store: SQLiteStore,
         mockdesk_gateway: MockDeskGateway,
         project_root: Path,
+        chat_client: ChatClient | None = None,
     ) -> ProcurementService:
         return cls(
             store=store,
@@ -91,6 +113,7 @@ class ProcurementService:
             policy_engine=PolicyEngine.from_yaml(project_root / "data" / "policy_rules.yaml"),
             suppliers_path=project_root / "data" / "suppliers.csv",
             purchase_history_path=project_root / "data" / "purchase_history.csv",
+            chat_client=chat_client,
         )
 
     def analyze(self, request: PurchaseRequest, *, role: str, user: str) -> AnalysisResponse:
@@ -190,6 +213,7 @@ class ProcurementService:
                     trace_id=trace_id,
                     details={"superseded_by": approval_id},
                 )
+            response.llm_narrative = self._narrate(response)
             return response
         except AuthorizationError as exc:
             exc.attach_trace(trace_id)
@@ -211,6 +235,67 @@ class ProcurementService:
                 details={"code": exc.code, "message": str(exc)},
             )
             raise
+
+    def draft_intake(self, text: str, *, role: str, user: str) -> IntakeResponse:
+        trace_id = f"trace-{uuid4().hex[:12]}"
+        try:
+            authorize(role, "draft_intake_request")
+        except AuthorizationError as exc:
+            exc.attach_trace(trace_id)
+            self.store.add_audit(
+                event_type="AUTHORIZATION_DENIED",
+                actor=user[:64],
+                trace_id=trace_id,
+                details={"role": role[:64], "action": "draft_intake_request"},
+            )
+            raise
+        # The free text is data, never an instruction: a match is recorded and
+        # shown to the reviewer, but it must not stop the draft.
+        injection_rule_id = matched_injection_rule(text)
+        if self.chat_client is None:
+            raise LlmDisabledError(
+                "Intake assistant is disabled; configure VALUEBRIDGE_LLM_API_KEY to enable it"
+            ).attach_trace(trace_id)
+        try:
+            completion = self.chat_client.complete(
+                system=load_prompt("intake_system"),
+                user=text,
+            )
+        except ValueBridgeError as exc:
+            exc.attach_trace(trace_id)
+            self._audit_intake_failure(exc.code, user=user, trace_id=trace_id)
+            raise
+        try:
+            draft = PurchaseRequestDraft.model_validate(json.loads(_strip_code_fences(completion)))
+        except (ValidationError, ValueError) as exc:
+            failure = IntakeExtractionError(
+                "Intake assistant returned a draft that is not a valid purchase request"
+            )
+            failure.attach_trace(trace_id)
+            self._audit_intake_failure(failure.code, user=user, trace_id=trace_id)
+            raise failure from exc
+        present = [name for name in _INTAKE_FIELDS if getattr(draft, name) is not None]
+        self.store.add_audit(
+            event_type="INTAKE_DRAFTED",
+            actor=user,
+            request_id=draft.request_id,
+            trace_id=trace_id,
+            details={"fields_present": present, "injection_rule_id": injection_rule_id},
+        )
+        return IntakeResponse(
+            draft=draft,
+            missing_fields=[name for name in _INTAKE_FIELDS if name not in present],
+            injection_rule_id=injection_rule_id,
+            trace_id=trace_id,
+        )
+
+    def _audit_intake_failure(self, code: str, *, user: str, trace_id: str) -> None:
+        self.store.add_audit(
+            event_type="INTAKE_FAILED",
+            actor=user,
+            trace_id=trace_id,
+            details={"code": code},
+        )
 
     @staticmethod
     def _build_citations(
@@ -265,6 +350,36 @@ class ProcurementService:
                 trace_id=trace_id,
                 details={"document_id": document_id, "rule_id": rule_id},
             )
+
+    def _narrate(self, response: AnalysisResponse) -> str | None:
+        if self.chat_client is None:
+            return None
+        try:
+            narrative = self.chat_client.complete(
+                system=load_prompt("narrator_system"),
+                user=self._narrator_user_message(response),
+            )
+        except Exception:
+            # The narrative is display-only: a failing or slow provider must
+            # never change the decision or fail the analysis.
+            return None
+        return narrative.strip() or None
+
+    def _narrator_user_message(self, response: AnalysisResponse) -> str:
+        locked = {
+            "decision": response.decision.model_dump(mode="json"),
+            "analysis": response.analysis.model_dump(mode="json"),
+            "citations": [item.model_dump(mode="json") for item in response.citations],
+        }
+        parts = [json.dumps(locked, ensure_ascii=False, sort_keys=True)]
+        attachments = self.policy_repository.untrusted_attachments(response.request.supplier_name)
+        for document_id, content in attachments:
+            parts.append(
+                f"--- BEGIN UNTRUSTED SUPPLIER ATTACHMENT {document_id} ---\n"
+                f"{content}\n"
+                f"--- END UNTRUSTED SUPPLIER ATTACHMENT {document_id} ---"
+            )
+        return "\n\n".join(parts)
 
     def _case_trace_id(self, approval_id: str) -> str:
         try:

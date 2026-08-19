@@ -69,3 +69,19 @@ class MockDeskUnavailableError(ValueBridgeError):
 class MockDeskRequestError(ValueBridgeError):
     code = "MOCKDESK_REQUEST_FAILED"
     status_code = 502
+
+
+class LlmUnavailableError(ValueBridgeError):
+    code = "LLM_UNAVAILABLE"
+    status_code = 502
+    retryable = True
+
+
+class LlmDisabledError(ValueBridgeError):
+    code = "LLM_DISABLED"
+    status_code = 503
+
+
+class IntakeExtractionError(ValueBridgeError):
+    code = "INTAKE_EXTRACTION_FAILED"
+    status_code = 502

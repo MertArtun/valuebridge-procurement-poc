@@ -1,0 +1,5 @@
+{
+  "_note": "Placeholder transcripts kept deterministic for offline tests; regenerate with scripts/record_llm_fixtures.py.",
+  "a3220437f667b8a7": "Talep koşullu incelemededir. Tutar, 4.2 numaralı bölümdeki finans onayı eşiğini aştığı için finans onayı gerekir; 4.3 numaralı bölüm uyarınca yeterli alternatif teklif bulunmadığı da kayda geçmiştir. Geçmiş medyan 184.500 TL'ye göre fiyat sapması %19,24, teslim süresi ise standarda göre 6 gün uzundur. Tedarikçi sertifikası geçerlidir. Karar ve tutarlar deterministik motordan gelmektedir; kaydın açılabilmesi için finans onayının insan tarafından verilmesi gerekir.",
+  "79db33f083cc9a11": "{\"request_id\": \"PR-2026-0042\", \"request_date\": \"2026-08-18\", \"supplier_name\": \"Atlas Endüstri\", \"category\": \"SPARE_PARTS\", \"amount_try\": \"220000\", \"received_quotes\": 1, \"offered_lead_time_days\": 20}"
+}

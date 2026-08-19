@@ -33,9 +33,14 @@ def test_home_ships_a_region_for_every_workflow_state(tmp_path: Path) -> None:
     html = _client(tmp_path).get("/").text
 
     for element_id in (
+        "intake-text",
+        "intake-button",
+        "intake-notice",
+        "intake-error",
         "analysis-loading",
         "analysis-error",
         "security-notice",
+        "llm-narrative",
         "approval-status",
         "execution-success",
         "duplicate-notice",
@@ -58,11 +63,33 @@ def test_state_regions_are_announced_and_hidden_until_used(tmp_path: Path) -> No
     html = _client(tmp_path).get("/").text
 
     banners = [line for line in html.splitlines() if 'class="state-banner' in line]
-    assert len(banners) == 6, banners
+    assert len(banners) == 9, banners
     for line in banners:
         assert 'role="status"' in line or 'role="alert"' in line, line
         assert "hidden" in line, line
     assert 'aria-live="polite"' in html
+
+
+def test_intake_fills_the_form_without_starting_the_analysis(tmp_path: Path) -> None:
+    script = _client(tmp_path).get("/static/app.js").text
+    handler = script.split("intakeButton.addEventListener", 1)[1].split("\n});", 1)[0]
+
+    assert "/api/v1/requests/intake" in handler
+    assert "showBanner('#intake-error'" in handler
+    assert "body.missing_fields" in handler
+    assert "body.injection_rule_id" in handler
+    assert "applyDraft(body.draft);" in handler
+    assert "/api/v1/requests/analyze" not in handler
+
+
+def test_narrative_is_rendered_as_text_only_when_the_model_answered(tmp_path: Path) -> None:
+    script = _client(tmp_path).get("/static/app.js").text
+    html = _client(tmp_path).get("/").text
+
+    assert "showBanner('#llm-narrative', body.llm_narrative)" in script
+    assert "hideBanner('#llm-narrative')" in script
+    assert 'id="llm-narrative-text"' in html
+    assert "Karar deterministik motordan gelir" in html
 
 
 def test_security_notice_is_scoped_to_the_analysed_request(tmp_path: Path) -> None:

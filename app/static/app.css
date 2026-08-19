@@ -6,7 +6,7 @@
 }
 * { box-sizing: border-box; }
 body { margin: 0; }
-button, input { font: inherit; }
+button, input, textarea { font: inherit; }
 button { border: 1px solid #b8c4d4; background: #fff; border-radius: 10px; padding: 11px 15px; cursor: pointer; }
 button:disabled { opacity: .45; cursor: not-allowed; }
 button.primary { background: #14213d; color: #fff; border-color: #14213d; font-weight: 750; }
@@ -28,6 +28,7 @@ h1 { font-size: clamp(3.2rem, 9vw, 6.5rem); line-height: .9; letter-spacing: -.0
 .form-grid label { display: grid; gap: 7px; color: #53647b; font-size: .86rem; }
 .form-grid input { border: 1px solid #cbd4df; border-radius: 10px; padding: 11px 12px; color: #132033; background: #fbfcfe; }
 .form-grid .primary { align-self: end; min-height: 43px; }
+#intake-text { width: 100%; min-height: 96px; margin-bottom: 12px; border: 1px solid #cbd4df; border-radius: 10px; padding: 11px 12px; color: #132033; background: #fbfcfe; resize: vertical; }
 .metric-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
 .metric { background: #f1f4f8; padding: 16px; border-radius: 12px; display: grid; gap: 5px; }
 .metric span { color: #64758b; font-size: .78rem; }
@@ -44,6 +45,7 @@ pre { white-space: pre-wrap; overflow-wrap: anywhere; background: #101a2d; color
 .state-duplicate { background: #eae7fb; border-color: #c3bcf0; color: #3a2d7a; }
 .state-error { background: #fdeaea; border-color: #efb8b8; color: #8a1c1c; }
 .hint { color: #53647b; font-size: .86rem; margin: 0 0 12px; }
+small.hint { display: block; margin: 12px 0 0; }
 .audit-list { display: grid; gap: 8px; }
 .audit-event { border-radius: 10px; background: #f4f6f9; }
 .audit-event summary { display: grid; grid-template-columns: 1.2fr 1fr 1.5fr; gap: 12px; align-items: center; padding: 11px 12px; border-radius: 10px; cursor: pointer; }

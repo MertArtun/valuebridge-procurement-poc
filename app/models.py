@@ -33,6 +33,36 @@ class PurchaseRequest(ApiModel):
         return format(value, "f")
 
 
+class PurchaseRequestDraft(ApiModel):
+    """A human-reviewed intake draft: every field may still be unresolved."""
+
+    request_id: str | None = Field(
+        default=None,
+        min_length=3,
+        max_length=64,
+        pattern=r"^[A-Z0-9][A-Z0-9._-]*$",
+    )
+    request_date: date | None = None
+    supplier_name: str | None = Field(default=None, min_length=1, max_length=120)
+    category: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=64,
+        pattern=r"^[A-Z0-9_]+$",
+    )
+    amount_try: Decimal | None = Field(default=None, gt=0, max_digits=18, decimal_places=2)
+    received_quotes: int | None = Field(default=None, ge=0, le=100)
+    offered_lead_time_days: int | None = Field(default=None, ge=0, le=3650)
+
+    @field_serializer("amount_try")
+    def serialize_amount_try(self, value: Decimal | None) -> str | None:
+        return None if value is None else format(value, "f")
+
+
+class IntakeRequest(ApiModel):
+    text: str = Field(min_length=1, max_length=2000)
+
+
 class SupplierRecord(ApiModel):
     supplier_name: str
     quality_score: int = Field(ge=0, le=100)
@@ -127,6 +157,14 @@ class AnalysisResponse(ApiModel):
     citations: list[Citation]
     approval: ApprovalRecord | None = None
     explanation: str
+    llm_narrative: str | None = None
+    trace_id: str
+
+
+class IntakeResponse(ApiModel):
+    draft: PurchaseRequestDraft
+    missing_fields: list[str]
+    injection_rule_id: str | None = None
     trace_id: str
 
 

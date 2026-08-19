@@ -24,6 +24,15 @@
     </section>
 
     <section class="card">
+      <div class="section-heading"><div><p class="step">00</p><h2>Serbest Metin Talep</h2></div></div>
+      <p class="hint">Serbest metinden yalnızca bir taslak çıkarılır ve aşağıdaki form doldurulur. Alanları kontrol edip analizi siz başlatırsınız.</p>
+      <textarea id="intake-text" maxlength="2000" rows="4" placeholder="Örn: Atlas Endüstri'den 220.000 TL tutarında yedek parça alacağız, tek teklif var ve teslim süresi 20 gün."></textarea>
+      <div class="button-row"><button id="intake-button" type="button">Taslak Çıkar</button></div>
+      <div class="state-banner state-warning hidden" id="intake-notice" role="status" aria-live="polite"><strong>Taslak forma yazıldı.</strong> <span id="intake-notice-message"></span></div>
+      <div class="state-banner state-error hidden" id="intake-error" role="alert"><strong>Taslak çıkarılamadı.</strong> <span id="intake-error-message"></span></div>
+    </section>
+
+    <section class="card">
       <div class="section-heading">
         <div>
           <p class="step">01</p>
@@ -64,6 +73,8 @@
         </div>
       </div>
       <pre id="explanation"></pre>
+      <div class="state-banner state-info hidden" id="llm-narrative" role="status" aria-live="polite"><strong>Yapay Zekâ Anlatımı</strong> <span id="llm-narrative-text"></span></div>
+      <small class="hint">Karar deterministik motordan gelir; bu metin yalnızca anlatımdır.</small>
     </section>
 
     <section class="card hidden" id="approval-card">

@@ -6,6 +6,8 @@ const approveButton = document.querySelector('#approve-button');
 const rejectButton = document.querySelector('#reject-button');
 const executeButton = document.querySelector('#execute-button');
 const auditButton = document.querySelector('#audit-button');
+const intakeButton = document.querySelector('#intake-button');
+const intakeText = document.querySelector('#intake-text');
 const approvalStatus = document.querySelector('#approval-status');
 let approvalId = null;
 let analysisTraceId = null;
@@ -111,7 +113,53 @@ function renderAnalysis(body) {
   });
   replaceChildren('#citations', ...citations);
   document.querySelector('#explanation').textContent = body.explanation;
+
+  if (typeof body.llm_narrative === 'string' && body.llm_narrative.trim()) {
+    showBanner('#llm-narrative', body.llm_narrative);
+  } else {
+    hideBanner('#llm-narrative');
+  }
 }
+
+function applyDraft(draft) {
+  Object.entries(draft).forEach(([name, value]) => {
+    if (value === null) return;
+    const field = form.elements.namedItem(name);
+    if (field) field.value = String(value);
+  });
+}
+
+intakeButton.addEventListener('click', async () => {
+  hideBanner('#intake-notice');
+  hideBanner('#intake-error');
+  let response;
+  let body;
+  try {
+    response = await fetch('/api/v1/requests/intake', {
+      method: 'POST',
+      headers: headers('procurement_specialist', 'procurement_user'),
+      body: JSON.stringify({ text: intakeText.value }),
+    });
+    body = await response.json();
+  } catch (networkError) {
+    showBanner('#intake-error', `Sunucuya ulaşılamadı: ${networkError.message}`);
+    return;
+  }
+  if (!response.ok) {
+    showBanner('#intake-error', errorMessage(body));
+    return;
+  }
+
+  applyDraft(body.draft);
+  const notes = body.missing_fields.length
+    ? [`Eksik alanlar elle doldurulmalı: ${body.missing_fields.join(', ')}.`]
+    : ['Tüm alanlar dolduruldu.'];
+  if (body.injection_rule_id) {
+    notes.push(`Metinde talimat denemesi tespit edildi (${body.injection_rule_id}); yalnızca veri olarak işlendi.`);
+  }
+  notes.push('Analizi başlatmak için formu kontrol edip “Talebi Analiz Et” demelisiniz.');
+  showBanner('#intake-notice', notes.join(' '));
+});
 
 form.addEventListener('submit', async (event) => {
   event.preventDefault();

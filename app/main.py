@@ -10,12 +10,15 @@ from fastapi.templating import Jinja2Templates
 from starlette.requests import Request
 
 from app.errors import ValueBridgeError
+from app.llm import chat_client_from_env
 from app.metrics import summarize
 from app.mockdesk_client import HttpMockDeskGateway
 from app.models import (
     ActionPreview,
     AnalysisResponse,
     ApprovalRecord,
+    IntakeRequest,
+    IntakeResponse,
     PurchaseRequest,
     TicketResult,
 )
@@ -39,6 +42,7 @@ def _default_service() -> ProcurementService:
         store=store,
         mockdesk_gateway=gateway,
         project_root=PROJECT_ROOT,
+        chat_client=chat_client_from_env(),
     )
 
 
@@ -110,6 +114,18 @@ def create_app(service: ProcurementService | None = None) -> FastAPI:
         x_demo_user: str = Header(alias="X-Demo-User"),
     ) -> AnalysisResponse:
         return resolve_service().analyze(payload, role=x_demo_role, user=x_demo_user)
+
+    @app.post("/api/v1/requests/intake", response_model=IntakeResponse)
+    def intake_request(
+        payload: IntakeRequest,
+        x_demo_role: str = Header(alias="X-Demo-Role"),
+        x_demo_user: str = Header(alias="X-Demo-User"),
+    ) -> IntakeResponse:
+        return resolve_service().draft_intake(
+            payload.text,
+            role=x_demo_role,
+            user=x_demo_user,
+        )
 
     @app.get("/api/v1/approvals/{approval_id}/action-preview", response_model=ActionPreview)
     def action_preview(
