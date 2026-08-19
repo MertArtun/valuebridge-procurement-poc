@@ -28,6 +28,43 @@ The target role emphasizes building enterprise deployments through workflow and 
 | 12 | Audit | Record inputs and output | API/webhook | Audit service |
 | 13 | Failure branch | Retry, fallback and escalation | Workflow conditions | Error policy |
 
+## Node-level mapping
+
+The table above is the business view. This one is the build view: which SkyStudio construct carries each step and which ValueBridge endpoint it calls. Endpoint paths, methods and status codes are real and testable today; the SkyStudio column is the design target and is unvalidated.
+
+| # | Step | SkyStudio construct | ValueBridge call | Contract detail |
+|---:|---|---|---|---|
+| 1 | Collect the request in chat | Assistant (`Satın Alma Asistanı`) | — | System prompt states that it collects fields and never decides |
+| 2 | Turn free text into a draft | Assistant tool → webhook | `POST /api/v1/requests/intake` | Body `{"text": "..."}`; returns `draft`, `missing_fields`, `injection_rule_id`, `trace_id` |
+| 3 | Ask for the missing fields | Assistant turn | — | Loops on `missing_fields`; no call until the draft is complete |
+| 4 | Confirm the draft with the user | Assistant turn | — | The human, not the model, approves the draft that gets analyzed |
+| 5 | Run the decision | Workflow node (HTTP) | `POST /api/v1/requests/analyze` | Headers `X-Demo-Role`, `X-Demo-User`; returns `analysis`, `decision`, `citations`, `approval`, `llm_narrative` |
+| 6 | Branch on the outcome | Workflow condition node | — | On `decision.decision_status`: `APPROVED`, `CONDITIONAL_REVIEW`, `REJECTED` |
+| 7 | End a rejected request | Workflow end node | — | `REJECTED` carries no `approval`; the branch closes with the citation, it does not route for sign-off |
+| 8 | Show the outbound payload | Workflow node (HTTP) → assistant message | `GET /api/v1/approvals/{id}/action-preview` | The preview is server-generated; the assistant renders it verbatim |
+| 9 | Collect the finance decision | Approval pattern over the available form/webhook capability | `POST /api/v1/approvals/{id}/approve` or `/reject` | Requires the `finance_approver` role; needs workspace validation |
+| 10 | Create the ticket | Workflow node (HTTP) or Jira connector | `POST /api/v1/tool-actions/{id}/execute` | Returns `409 APPROVAL_REQUIRED` if called before sign-off; replay returns the same `ticket_id` with `ALREADY_PROCESSED` |
+| 11 | Answer a policy question | Agent tool → webhook | `POST /api/v1/policies/ask` | Body `{"question": "...", "on_date": "YYYY-MM-DD"}`; returns governed `sections` plus an optional `answer` |
+| 12 | Report the pilot | Scheduled workflow → webhook | `GET /api/v1/metrics/summary` | Derived from the audit trail; safe to post into a channel |
+| 13 | Handle failure | Workflow error branch | — | Retry on `502`; stop on `409`; surface `503 LLM_DISABLED` as "assistant unavailable, use the form" |
+
+## Target architecture
+
+The intake assistant is the piece that belongs in SkyStudio rather than in ValueBridge. It is a SkyStudio assistant that owns the conversation and calls ValueBridge as a tool:
+
+```text
+User (chat)
+  → SkyStudio assistant
+      → tool: ValueBridge POST /requests/intake      (draft, missing fields, injection flag)
+      ← assistant asks for what is missing
+      → human confirms the draft
+      → tool: ValueBridge POST /requests/analyze     (decision, citations, approval)
+  → SkyStudio workflow
+      → action preview → finance approval → execute → audit
+```
+
+The split is deliberate. The assistant owns turn-taking, clarification and phrasing, which is what a conversational platform is good at. ValueBridge owns the arithmetic, the effective policy, the approval state and the idempotency key, which are the parts that must be identical on every run and must survive the model being unavailable. If the assistant is switched off, the same workflow still runs from the form.
+
 ## Accuracy boundary
 
 The public Workflow API documentation confirms that a published workflow can be triggered by `POST /api/workflow/workflowrun` with Bearer authentication. Public status-code guidance recommends `Retry-After`, exponential backoff, idempotent requests and safe fallback patterns. This blueprint does not assert a native approval node; the exact human-approval implementation must be validated in an authorized workspace.

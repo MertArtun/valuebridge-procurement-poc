@@ -11,7 +11,8 @@
 
 - No real customer discovery or live SkyStudio workspace was used.
 - Demo headers are not production identity or SSO.
-- Lexical, manifest-backed policy selection is not a full enterprise RAG pipeline.
+- Manifest-backed retrieval with BM25 and an optional file-based embedding index is not a governed enterprise RAG pipeline.
+- Model output is display-only and ungraded; the frozen evaluations assert governance and decisions, not answer wording.
 - Pattern detection is not a complete prompt-injection defense.
 - SQLite audit storage is not immutable, although approval and idempotency transitions are atomic in the local database.
 - No customer adoption, ROI, accuracy or time-saving result is measured.

@@ -24,7 +24,9 @@ Independent FastAPI service representing an enterprise ticketing integration. It
 
 ### Optional model provider
 
-Not part of the core runtime. A future provider may narrate a precomputed decision but cannot own rule evaluation, authorization or tool execution.
+Not part of the core runtime. `app/llm.py` defines a `ChatClient` protocol and `app/policy_qa.py` an `EmbeddingClient` protocol; the shipped implementations speak the OpenAI-compatible chat-completions and embeddings contracts through OpenRouter, so the provider and model id are environment configuration rather than code. Prompts live in `app/prompts/*.md`.
+
+Both clients are constructed only when `VALUEBRIDGE_LLM_API_KEY` is set, and every call site degrades instead of failing: a missing chat client makes intake return `503 LLM_DISABLED`, a failing one leaves `llm_narrative` and the policy answer `null`, and a missing, malformed or unreachable embedding layer drops hybrid retrieval back to `lexical`. The provider narrates, drafts and answers; it never evaluates a rule, authorizes an actor or executes a tool.
 
 ## Module boundaries
 
@@ -36,6 +38,9 @@ Not part of the core runtime. A future provider may narrate a precomputed decisi
 | `security.py` | Role policy and injection detection | Persist domain state |
 | `store.py` | Approval, case and audit persistence | Interpret policy text |
 | `service.py` | Orchestrate the use case | Hide decision inputs |
+| `llm.py` | Provider-agnostic chat client and prompt loading | Reach a decision or a store |
+| `policy_qa.py` | Governed candidate scoping, BM25/hybrid ranking and grounded answering | Widen the candidate set by score |
+| `metrics.py` | Fold audit events into pilot metrics | Read domain tables directly |
 | `mockdesk_client.py` | Integration, retry and error boundary | Approve actions |
 | `mockdesk/store.py` | Atomic idempotent ticket persistence | Re-evaluate policy |
 
@@ -48,11 +53,26 @@ Not part of the core runtime. A future provider may narrate a precomputed decisi
 5. Analysis calculates values with `Decimal`.
 6. Policy engine creates `PolicyDecision`.
 7. Service maps applied rule IDs to citations.
-8. Store creates one pending `finance_approver` approval for every blocking decision; a re-analysis with the same request fingerprint reuses it, a corrected one supersedes it.
-9. Finance approves or rejects; compare-and-set permits one terminal transition.
-10. Procurement executes only an approved action.
-11. MockDesk atomically creates or replays the payload-bound ticket.
-12. Audit events reconstruct success and failure paths.
+8. Store creates one pending `finance_approver` approval for every blocking decision; a re-analysis with the same request fingerprint reuses it, a corrected one supersedes it. A `REJECTED` decision opens no approval at all.
+9. The narrator, if configured, describes the already persisted decision; its output is attached to the response and to nothing else.
+10. Finance approves or rejects; compare-and-set permits one terminal transition.
+11. Procurement executes only an approved action.
+12. MockDesk atomically creates or replays the payload-bound ticket.
+13. Audit events reconstruct success and failure paths.
+
+## Policy question flow
+
+1. API validates the question and the date it is asked about.
+2. Server authorizes the actor for `ask_policy_question`.
+3. `policy_qa.py` builds the candidate set from documents the role may read whose status is `CURRENT` and whose effective window covers the asked date. Superseded policy and untrusted supplier attachments are excluded here, before any score exists, so no ranking signal can promote them back in.
+4. BM25 scores the surviving sections; Turkish text is lowercased before tokenization so a dotted capital `İ` does not split a word.
+5. When an embedding client and `data/policy_embeddings.json` are both present, cosine similarity is blended with the normalized lexical score and the response reports `hybrid`; otherwise, and on any embedding failure, it reports `lexical`.
+6. The optional answer is generated strictly from the returned sections and cites their section numbers; the sections stand alone when no answer is produced.
+7. The question, its retrieval mode and any matched injection rule are audited.
+
+## Metrics
+
+`metrics.py` folds the stored audit events into the pilot summary served by `GET /api/v1/metrics/summary`: decision mix, approval outcomes, tickets created, duplicates prevented, quarantined attachments, denied or blocked actions and median cycle time. It reads no domain table, so a metric can never claim something the audit trail cannot reconstruct.
 
 ## Trust boundaries
 
@@ -69,6 +89,9 @@ Browser input, supplier attachments, optional model output and MockDesk response
 - Same idempotency key with changed payload: `409 IDEMPOTENCY_CONFLICT`.
 - Transient 429/503/504 or transport error: bounded retry with same key.
 - Persistent downstream failure: normalized `502` and audit event.
+- Intake without a configured provider: `503 LLM_DISABLED` and an `INTAKE_FAILED` audit event.
+- Model provider error during intake: normalized `502` carrying only the failure class or status code, never the provider body.
+- Model provider error during narration or answering: the field stays `null`, the decision and the retrieved sections are unchanged, and narration records `NARRATION_SKIPPED`.
 
 ## Deployment
 
@@ -81,7 +104,7 @@ Native mode runs two Uvicorn processes. Docker Compose uses the same non-root im
 | SQLite | Managed PostgreSQL |
 | Demo headers | OIDC/SSO claims |
 | File manifests | Governed knowledge repository |
-| Lexical section retrieval | ACL-aware hybrid retrieval/reranking |
+| File-backed embedding index next to BM25 | Governed vector store with ACL-aware reranking |
 | MockDesk | Jira/ServiceNow/ERP adapter |
-| Template narrator | Validated model provider or SkyStudio assistant |
+| Optional narration through a hosted provider | Reviewed and evaluated provider or a SkyStudio assistant |
 | Local audit | Central immutable audit infrastructure |

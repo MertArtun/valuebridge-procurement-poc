@@ -27,7 +27,23 @@ System claims must come from executable tests or a controlled pilot, not manuall
 
 ### Frozen evaluation cases
 
-`app/evaluation.py` executes JSONL cases from `evals/` through `scripts/run_evals.py` and writes `reports/evaluation.json`. Expected policy behavior comes from `evals/policy_oracle.yaml`, not application return values. A frozen case that contradicts the oracle fails as dataset drift.
+`app/evaluation.py` executes JSONL cases from `evals/` through `scripts/run_evals.py` and writes `reports/evaluation.json`. Fifteen cases run today across four families:
+
+| Family | File | Cases | Oracle |
+|---|---|---:|---|
+| Policy decision | `policy_decision_cases.jsonl` | 6 | `evals/policy_oracle.yaml` |
+| Security | `security_cases.jsonl` | 4 | The frozen `expected` block |
+| Idempotency | `idempotency_cases.jsonl` | 3 | The frozen `expected` block |
+| Governed retrieval | `rag_cases.jsonl` | 2 | The frozen `expected` block |
+
+Expected policy behavior comes from `evals/policy_oracle.yaml`, not application return values. A frozen case that contradicts the oracle fails as dataset drift. The security, idempotency and retrieval families are not parameterized by the oracle file, so their frozen `expected` block is the oracle for those cases.
+
+The retrieval cases assert governance, not answer quality, because governance is the part that must hold with or without a model:
+
+- `RAG-001` — the finance-threshold question ranks the current procurement policy first and retrieves no superseded section.
+- `RAG-002` — an injected question retrieves no untrusted supplier content.
+
+Both run keyless: they exercise candidate scoping and lexical ranking, which is what a provider outage would leave in place.
 
 ## Objective system metrics
 
@@ -40,6 +56,8 @@ System claims must come from executable tests or a controlled pilot, not manuall
 - Idempotency payload conflicts
 - Injection bypass count
 - Tool payload schema conformance
+- Superseded or untrusted sections reaching a retrieval result
+- Decision fields identical with the model layer on and off
 
 ## Workflow impact
 
@@ -57,5 +75,7 @@ docker compose up -d --build
 bash scripts/demo.sh
 docker compose down -v
 ```
+
+The suite currently reports 171 passing tests, `scripts/verify.py` 9 project invariants and `scripts/run_evals.py` 15 passing cases. Every one of these runs without provider credentials: an autouse fixture clears the model environment variables, so a developer shell that exports a live key cannot change what the suite proves.
 
 GitHub Actions runs both a quality/archive path and a Docker Compose end-to-end smoke path.

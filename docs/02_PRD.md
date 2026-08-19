@@ -13,7 +13,10 @@ The synthetic as-is process requires employees to search policies manually, calc
 - Select the policy effective on the request date.
 - Analyze the hero purchase request with reproducible arithmetic.
 - Separate deterministic decisions from optional language-model narration.
+- Refuse a request from a non-active supplier instead of routing it to approval.
 - Require an explicit finance approval for every blocking decision.
+- Answer policy questions only from sections the asker is allowed to read on that date.
+- Report pilot metrics from the audit trail rather than a separate counter.
 - Preview the exact outbound action before execution.
 - Demonstrate an HTTP integration through MockDesk.
 - Prevent duplicate writes under sequential and concurrent retries.
@@ -39,7 +42,8 @@ The synthetic as-is process requires employees to search policies manually, calc
 ## Hero workflow
 
 ```text
-Purchase Request
+Free-Text Intake (optional, human-reviewed)
+→ Purchase Request
 → Role Check
 → Effective Policy Retrieval
 → Purchase-History Analysis
@@ -75,6 +79,11 @@ Purchase Request
 | FR-016 | Persist success and failure events with trace IDs. | Audit tests |
 | FR-017 | Render API-controlled values without executable markup. | UI security tests |
 | FR-018 | Export frozen evaluation results as machine-readable JSON. | Evaluation runner tests |
+| FR-019 | Reject a request from a non-active supplier and open no approval. | `test_rejected_decision.py` |
+| FR-020 | Derive pilot metrics from stored audit events only. | `test_metrics.py` |
+| FR-021 | Draft a free-text intake into a reviewable request without starting the analysis, flagging injection attempts as data. | `test_intake.py` |
+| FR-022 | Filter policy candidates by effective date, role and trust before any relevance score is computed. | `test_policy_qa.py`, RAG evaluation cases |
+| FR-023 | Keep every model-produced field display-only and absent when the provider is unset or failing. | `test_llm_narrator.py`, `test_llm_env_isolation.py` |
 
 ## Non-functional requirements
 
@@ -92,18 +101,23 @@ Purchase Request
 
 ## Decision boundary
 
-Deterministic components own arithmetic, dates, thresholds, authorization, approval state, idempotency and tool permission. An optional model may normalize a request or narrate a locked decision, but it may not modify rule results, approval state or tool parameters.
+Deterministic components own arithmetic, dates, thresholds, authorization, approval state, idempotency and tool permission. The model layer is display-only: it drafts an intake a human must review, narrates a decision that is already locked and answers a policy question from sections retrieval already governed. It cannot change a rule result, an approval state, a tool parameter or which documents are retrievable.
+
+The layer is optional. Without `VALUEBRIDGE_LLM_API_KEY` the intake endpoint returns `503 LLM_DISABLED`, `llm_narrative` and the policy answer are `null`, and every other response is byte-identical. Model provider and model id are configuration, because no model owns a decision.
 
 ## Implemented API
 
 ```text
 GET  /health
+POST /api/v1/requests/intake
 POST /api/v1/requests/analyze
+POST /api/v1/policies/ask
 GET  /api/v1/approvals/{approval_id}/action-preview
 POST /api/v1/approvals/{approval_id}/approve
 POST /api/v1/approvals/{approval_id}/reject
 POST /api/v1/tool-actions/{approval_id}/execute
 GET  /api/v1/audit/events
+GET  /api/v1/metrics/summary
 ```
 
 The frozen evaluation suite is an offline CLI/CI job through `scripts/run_evals.py`; no public evaluation endpoint is exposed.
@@ -114,7 +128,8 @@ The frozen evaluation suite is an offline CLI/CI job through `scripts/run_evals.
 - `404`: supplier, request or approval not found
 - `409`: approval conflict or idempotency conflict
 - `422`: schema validation or insufficient domain evidence
-- `502`: normalized downstream integration failure
+- `502`: normalized downstream integration failure, including an unreachable model provider (`LLM_UNAVAILABLE`) or an unusable intake draft (`INTAKE_EXTRACTION_FAILED`)
+- `503`: the optional model layer is not configured (`LLM_DISABLED`)
 
 Structured domain errors contain a stable code, human-readable message, trace ID where available and `retryable` flag.
 

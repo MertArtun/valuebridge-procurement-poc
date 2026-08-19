@@ -5,11 +5,14 @@ sequenceDiagram
     participant D as Data/Policies
     participant M as MockDesk
 
+    P->>V: Draft PR-2026-0042 from free text
+    V-->>P: Draft and missing fields for human review
     P->>V: Analyze PR-2026-0042
     V->>D: Load accessible current policy and data
     D-->>V: v2026.1, history, supplier record
     V->>V: Calculate and evaluate deterministically
     V-->>P: Decision, citations, pending approval
+    Note over V,P: Optional narration describes the already locked decision
     P->>V: Execute before approval
     V-->>P: 409 Approval Required
     F->>V: Approve action

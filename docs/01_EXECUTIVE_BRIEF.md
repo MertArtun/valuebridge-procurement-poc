@@ -47,6 +47,5 @@ Teknik başarı:
 Demo başarısı:
 
 - 90 saniyede anlaşılabilen bir demo
-- Tek komutla çalıştırılabilen repository
-- İlan sorumluluklarıyla açık traceability
-- Mimari, güvenlik, ölçüm ve handoff disiplininin görünmesi
+- Tek komutla kurulup çalıştırılabilen repository
+- Mimari, güvenlik ve ölçüm disiplininin çalışan sistem üzerinde görünür olması

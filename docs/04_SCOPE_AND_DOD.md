@@ -13,6 +13,9 @@
 - Role controls
 - Audit trail and structured domain failures
 - Indirect prompt-injection quarantine
+- Governed policy retrieval with optional hybrid scoring
+- Optional, display-only model layer for intake drafting, narration and policy answers
+- Audit-derived pilot metrics
 - Safe browser rendering and security headers
 - Local runtime and Docker Compose
 
@@ -44,6 +47,10 @@
 - [x] API-controlled values are not rendered through `innerHTML`.
 - [x] Critical success and failure events are persisted.
 - [x] Core flow runs without model credentials.
+- [x] A non-active supplier is rejected and opens no approval.
+- [x] Decision fields are identical with the model layer enabled and disabled.
+- [x] Superseded policy and untrusted content are excluded before retrieval scoring.
+- [x] Pilot metrics are derived only from the audit trail.
 
 ## Application-ready gate
 
@@ -60,4 +67,4 @@
 
 ## Optional enhancements
 
-Only after the application-ready gate: optional model narrator, authorized SkyStudio experiment, PostgreSQL/pgvector evaluation, non-production ticketing sandbox or external domain-expert review.
+Only after the application-ready gate: authorized SkyStudio experiment, automated grading of model output, PostgreSQL/pgvector evaluation, non-production ticketing sandbox or external domain-expert review.
