@@ -5,7 +5,7 @@ services:
     environment:
       MOCKDESK_DB_PATH: /app/runtime/mockdesk.db
     volumes:
-      - ./runtime:/app/runtime
+      - valuebridge-runtime:/app/runtime
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/health')"]
       interval: 3s
@@ -19,9 +19,12 @@ services:
       MOCKDESK_URL: http://mockdesk:8001
       VALUEBRIDGE_DB_PATH: /app/runtime/valuebridge.db
     volumes:
-      - ./runtime:/app/runtime
+      - valuebridge-runtime:/app/runtime
     ports:
       - "8000:8000"
     depends_on:
       mockdesk:
         condition: service_healthy
+
+volumes:
+  valuebridge-runtime:

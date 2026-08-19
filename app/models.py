@@ -12,13 +12,21 @@ class ApiModel(BaseModel):
 
 
 class PurchaseRequest(ApiModel):
-    request_id: str
+    request_id: str = Field(
+        min_length=3,
+        max_length=64,
+        pattern=r"^[A-Z0-9][A-Z0-9._-]*$",
+    )
     request_date: date
-    supplier_name: str
-    category: str
-    amount_try: Decimal = Field(gt=0)
-    received_quotes: int = Field(ge=0)
-    offered_lead_time_days: int = Field(ge=0)
+    supplier_name: str = Field(min_length=1, max_length=120)
+    category: str = Field(
+        min_length=1,
+        max_length=64,
+        pattern=r"^[A-Z0-9_]+$",
+    )
+    amount_try: Decimal = Field(gt=0, max_digits=18, decimal_places=2)
+    received_quotes: int = Field(ge=0, le=100)
+    offered_lead_time_days: int = Field(ge=0, le=3650)
 
     @field_serializer("amount_try")
     def serialize_amount_try(self, value: Decimal) -> str:
@@ -77,7 +85,9 @@ class ApprovalRecord(ApiModel):
     request_id: str
     action_type: str
     requested_by: str
-    status: Literal["PENDING", "APPROVED", "REJECTED", "EXPIRED"]
+    status: Literal["PENDING", "APPROVED", "REJECTED", "EXPIRED", "SUPERSEDED"]
+    required_role: str = "finance_approver"
+    case_fingerprint: str = ""
     approved_by: str | None = None
     created_at: datetime
     updated_at: datetime
@@ -117,7 +127,7 @@ class AnalysisResponse(ApiModel):
     analysis: PurchaseAnalysis
     decision: PolicyDecision
     citations: list[Citation]
-    approval: ApprovalRecord
+    approval: ApprovalRecord | None = None
     explanation: str
     trace_id: str
 

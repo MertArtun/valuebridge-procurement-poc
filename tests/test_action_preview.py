@@ -63,7 +63,7 @@ def test_action_preview_returns_server_generated_outbound_action(tmp_path: Path)
     assert preview["approval_id"] == approval_id
     assert preview["target_system"] == "MOCKDESK"
     assert preview["operation"] == "CREATE_PROCUREMENT_EXCEPTION_TICKET"
-    assert preview["idempotency_key"] == "PR-2026-0042-PROCUREMENT-REVIEW"
+    assert preview["idempotency_key"] == f"{approval_id}-CREATE_PROCUREMENT_EXCEPTION_TICKET"
     assert preview["required_role"] == "finance_approver"
     assert preview["payload"]["request_id"] == "PR-2026-0042"
     assert preview["payload"]["summary"] == "Procurement Exception Review"

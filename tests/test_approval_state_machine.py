@@ -143,6 +143,21 @@ def test_expired_approval_cannot_be_rejected(tmp_path: Path) -> None:
     assert response.status_code == 409
 
 
+def test_reanalysis_after_ttl_expires_the_stale_approval(tmp_path: Path) -> None:
+    client, clock = build_client(tmp_path)
+    stale_id = create_pending_approval(client)
+
+    clock.advance(timedelta(hours=25))
+    renewed_id = create_pending_approval(client)
+
+    assert renewed_id != stale_id
+    assert "APPROVAL_EXPIRED" in audit_event_types(client)
+    stale = client.post(f"/api/v1/approvals/{stale_id}/approve", headers=FINANCE)
+    renewed = client.post(f"/api/v1/approvals/{renewed_id}/approve", headers=FINANCE)
+    assert stale.status_code == 409
+    assert renewed.status_code == 200
+
+
 def test_approval_within_ttl_still_succeeds(tmp_path: Path) -> None:
     client, clock = build_client(tmp_path)
     approval_id = create_pending_approval(client)

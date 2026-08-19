@@ -29,6 +29,9 @@ jobs:
       - name: Lint
         run: ruff check .
 
+      - name: Check browser script syntax
+        run: node --check app/static/app.js
+
       - name: Test
         run: pytest -q
 
@@ -47,3 +50,39 @@ jobs:
           "${RUNNER_TEMP}/archive-venv/bin/python" -m pip install --quiet '.[dev]'
           "${RUNNER_TEMP}/archive-venv/bin/python" -m pytest -q -p no:cacheprovider
           "${RUNNER_TEMP}/archive-venv/bin/python" scripts/verify.py
+          "${RUNNER_TEMP}/archive-venv/bin/python" scripts/run_evals.py
+
+  docker-smoke:
+    needs: quality
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Build and start services
+        run: docker compose up -d --build
+
+      - name: Wait for ValueBridge
+        run: |
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8000/health >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker compose logs --no-color
+          exit 1
+
+      - name: Run end-to-end demo assertions
+        run: bash scripts/demo.sh
+
+      - name: Run the demo again against the persistent volume
+        run: bash scripts/demo.sh
+
+      - name: Show service logs
+        if: always()
+        run: docker compose logs --no-color
+
+      - name: Stop services
+        if: always()
+        run: docker compose down -v

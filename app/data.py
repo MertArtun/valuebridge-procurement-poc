@@ -4,6 +4,7 @@ import csv
 from datetime import date
 from pathlib import Path
 
+from app.errors import SupplierNotFoundError
 from app.models import SupplierRecord
 
 
@@ -18,4 +19,4 @@ def load_supplier(path: Path, supplier_name: str) -> SupplierRecord:
                     status=row["status"],
                     risk_flag=row["risk_flag"],
                 )
-    raise ValueError(f"Supplier {supplier_name!r} was not found")
+    raise SupplierNotFoundError(f"Supplier {supplier_name!r} was not found")

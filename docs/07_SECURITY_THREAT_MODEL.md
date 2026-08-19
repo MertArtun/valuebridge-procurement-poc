@@ -1,51 +1,38 @@
 # Security and Threat Model
 
-## Assets
+## Assets and actors
 
-- Policy content and versions
-- Purchase and supplier data
-- Approval decisions
-- Tool-action payloads
-- Idempotency records
-- Audit events
-- Credentials in a future integration
-
-## Actors
-
-- Procurement Specialist
-- Finance Approver
-- Solution Engineer
-- Auditor
-- Malicious or compromised supplier document
-- Misconfigured external integration
+Protected assets include policy versions, purchase/supplier data, approval decisions, tool payloads, idempotency records and audit events. Actors are Procurement Specialist, Finance Approver, Solution Engineer, Auditor, untrusted supplier content and the external integration boundary.
 
 ## Threats and controls
 
-| Threat | Example | Current or planned control | Test |
-|---|---|---|---|
-| Indirect prompt injection | Supplier file says to ignore rules | Trust metadata, pattern detection, context exclusion | `test_security.py` |
-| Stale-policy use | 2025 threshold selected in 2026 | Status and effective-date filter | `test_retrieval.py` |
-| Approval bypass | Procurement user triggers write directly | Store-enforced approved state | `test_approvals.py`, `test_api.py` |
-| Role escalation | Procurement user approves finance action | Role-action matrix | `test_security.py` |
-| Duplicate action | Network retry creates second ticket | Unique idempotency key | `test_idempotency.py` |
-| Tool-parameter manipulation | Model changes amount or target | Typed action preview and server-side payload construction | Planned |
-| Citation mismatch | Explanation cites wrong section | Structured citation tests | Planned |
-| Secret leakage | API token logged | Environment-based secrets and redaction | Planned |
-| PII leakage | User data in verbose logs | Synthetic data now; redaction policy later | Planned |
-| Retry storm | 503 causes unbounded calls | Bounded exponential backoff | Planned |
-| Audit tampering | Event removed or rewritten | Append-oriented event policy; stronger store later | Partially implemented |
-| Hallucinated decision | Narrator changes status | Narrator receives immutable structured decision | Current architecture |
+| Threat | Control | Evidence |
+|---|---|---|
+| Indirect prompt injection | Trust metadata, quarantine event and context exclusion | `test_prompt_injection_quarantine.py` |
+| Wrong policy version | Role/trust/effective-period selection | `test_retrieval.py`, `test_application_readiness.py` |
+| Approval bypass | Persisted approval state checked server-side | `test_approvals.py`, `test_api.py` |
+| Approval race | Immediate transaction and compare-and-set terminal transition | `test_concurrency_hardening.py` |
+| Role escalation | Server-side role/action matrix | `test_security.py` |
+| Duplicate action | Atomic idempotency key plus canonical payload hash | `test_concurrency_hardening.py` |
+| Changed payload replay | `409 IDEMPOTENCY_CONFLICT` | `test_concurrency_hardening.py` |
+| Tool-parameter manipulation | Server-generated typed action preview | `test_action_preview.py` |
+| Citation drift | Rule-to-section mapping and policy/rule invariant | `test_api.py`, `test_application_readiness.py` |
+| DOM injection | DOM node construction, `textContent`, CSP and schema bounds | `test_ui.py`, `test_ui_security_hardening.py` |
+| Secret copied into image | `.dockerignore`, no core credentials and non-root image | `test_ui_security_hardening.py` |
+| Retry storm | Three-attempt retry, bounded `Retry-After` and preserved key | `test_mockdesk_retry.py`, `test_retry_after_hardening.py` |
+| Audit deletion or rewrite | Append-oriented local events; immutable store remains a production replacement | Residual risk |
 
 ## Security invariants
 
 1. Document content is data, never an instruction channel.
 2. Authorization runs server-side.
-3. Approval is a persisted domain state, not a UI flag.
-4. Idempotency is enforced by the receiving integration.
-5. A model cannot create or approve a write action.
-6. Error details must not contain secrets.
-7. Every security-relevant denial should become an audit event in the application-ready release.
+3. Approval is persisted domain state, not a UI flag.
+4. Exactly one terminal approval transition succeeds.
+5. Idempotency is enforced by the receiving integration.
+6. A model cannot create or approve a write action.
+7. API-controlled text is not interpreted as markup.
+8. Security quarantines and domain-analysis failures emit traceable audit events.
 
-## Residual risk
+## Residual risks
 
-The starter uses pattern-based injection detection and demo headers rather than comprehensive content isolation and real identity. These are acceptable only for the local synthetic PoC.
+Demo headers are not production identity, regex detection is not complete content isolation, SQLite audit records are mutable and the file-backed repository is not a governed enterprise knowledge system. These limits are stated rather than hidden.

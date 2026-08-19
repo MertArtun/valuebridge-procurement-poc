@@ -4,13 +4,13 @@ import os
 from pathlib import Path
 
 from fastapi import FastAPI, Header, HTTPException
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.requests import Request
 
-from app.approvals import ApprovalRequiredError, InvalidApprovalStateError
-from app.mockdesk_client import HttpMockDeskGateway, MockDeskUnavailableError
+from app.errors import ValueBridgeError
+from app.mockdesk_client import HttpMockDeskGateway
 from app.models import (
     ActionPreview,
     AnalysisResponse,
@@ -18,11 +18,15 @@ from app.models import (
     PurchaseRequest,
     TicketResult,
 )
-from app.security import AuthorizationError
+from app.security import authorize
 from app.service import ProcurementService
 from app.store import SQLiteStore
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
+
+# FastAPI's bundled docs UI loads its assets from a CDN plus one inline
+# bootstrap script, which the strict CSP would block into a blank page.
+_DOCS_PATHS = {"/docs", "/redoc", "/openapi.json"}
 
 
 def _default_service() -> ProcurementService:
@@ -40,24 +44,41 @@ def _default_service() -> ProcurementService:
 def create_app(service: ProcurementService | None = None) -> FastAPI:
     app = FastAPI(
         title="ValueBridge Procurement PoC",
-        version="0.1.0",
+        version="0.2.0",
         description="Forward-deployed procurement exception workflow case study.",
     )
-    app.state.service = service or _default_service()
+    app.state.service = service
     templates = Jinja2Templates(directory=str(PROJECT_ROOT / "app" / "templates"))
     app.mount("/static", StaticFiles(directory=str(PROJECT_ROOT / "app" / "static")), name="static")
 
-    @app.exception_handler(AuthorizationError)
-    async def authorization_error(_request: Request, exc: AuthorizationError):
-        return _json_error(403, "FORBIDDEN", str(exc), retryable=False)
+    def resolve_service() -> ProcurementService:
+        if app.state.service is None:
+            app.state.service = _default_service()
+        return app.state.service
 
-    @app.exception_handler(InvalidApprovalStateError)
-    async def invalid_approval_state(_request: Request, exc: InvalidApprovalStateError):
-        return _json_error(409, "INVALID_APPROVAL_STATE", str(exc), retryable=False)
+    @app.middleware("http")
+    async def security_headers(request: Request, call_next):
+        response = await call_next(request)
+        if request.url.path not in _DOCS_PATHS:
+            response.headers["Content-Security-Policy"] = (
+                "default-src 'self'; script-src 'self'; style-src 'self'; "
+                "img-src 'self' data:; object-src 'none'; base-uri 'none'; "
+                "frame-ancestors 'none'"
+            )
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["Referrer-Policy"] = "no-referrer"
+        response.headers["X-Frame-Options"] = "DENY"
+        return response
 
-    @app.exception_handler(MockDeskUnavailableError)
-    async def mockdesk_unavailable(_request: Request, exc: MockDeskUnavailableError):
-        return _json_error(502, "MOCKDESK_UNAVAILABLE", str(exc), retryable=True)
+    @app.exception_handler(ValueBridgeError)
+    async def valuebridge_error(_request: Request, exc: ValueBridgeError):
+        return _json_error(
+            exc.status_code,
+            exc.code,
+            str(exc),
+            retryable=exc.retryable,
+            trace_id=exc.trace_id,
+        )
 
     @app.get("/health")
     def health() -> dict[str, str]:
@@ -87,7 +108,7 @@ def create_app(service: ProcurementService | None = None) -> FastAPI:
         x_demo_role: str = Header(alias="X-Demo-Role"),
         x_demo_user: str = Header(alias="X-Demo-User"),
     ) -> AnalysisResponse:
-        return app.state.service.analyze(payload, role=x_demo_role, user=x_demo_user)
+        return resolve_service().analyze(payload, role=x_demo_role, user=x_demo_user)
 
     @app.get("/api/v1/approvals/{approval_id}/action-preview", response_model=ActionPreview)
     def action_preview(
@@ -97,7 +118,7 @@ def create_app(service: ProcurementService | None = None) -> FastAPI:
     ) -> ActionPreview:
         del x_demo_user
         try:
-            return app.state.service.action_preview(approval_id, role=x_demo_role)
+            return resolve_service().action_preview(approval_id, role=x_demo_role)
         except KeyError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
 
@@ -108,7 +129,7 @@ def create_app(service: ProcurementService | None = None) -> FastAPI:
         x_demo_user: str = Header(alias="X-Demo-User"),
     ) -> ApprovalRecord:
         try:
-            return app.state.service.approve(approval_id, role=x_demo_role, user=x_demo_user)
+            return resolve_service().approve(approval_id, role=x_demo_role, user=x_demo_user)
         except KeyError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
 
@@ -119,7 +140,7 @@ def create_app(service: ProcurementService | None = None) -> FastAPI:
         x_demo_user: str = Header(alias="X-Demo-User"),
     ) -> ApprovalRecord:
         try:
-            return app.state.service.reject(approval_id, role=x_demo_role, user=x_demo_user)
+            return resolve_service().reject(approval_id, role=x_demo_role, user=x_demo_user)
         except KeyError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
 
@@ -130,9 +151,7 @@ def create_app(service: ProcurementService | None = None) -> FastAPI:
         x_demo_user: str = Header(alias="X-Demo-User"),
     ) -> TicketResult:
         try:
-            return app.state.service.execute(approval_id, role=x_demo_role, user=x_demo_user)
-        except ApprovalRequiredError as exc:
-            raise HTTPException(status_code=409, detail=str(exc)) from exc
+            return resolve_service().execute(approval_id, role=x_demo_role, user=x_demo_user)
         except KeyError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
 
@@ -142,24 +161,26 @@ def create_app(service: ProcurementService | None = None) -> FastAPI:
         x_demo_user: str = Header(alias="X-Demo-User"),
     ):
         del x_demo_user
-        from app.security import authorize
-
         authorize(x_demo_role, "read_audit")
-        return app.state.service.store.list_audit()
+        return resolve_service().store.list_audit()
 
     return app
 
 
-def _json_error(status_code: int, code: str, message: str, retryable: bool):
-    from fastapi.responses import JSONResponse
-
+def _json_error(
+    status_code: int,
+    code: str,
+    message: str,
+    retryable: bool,
+    trace_id: str | None = None,
+) -> JSONResponse:
     return JSONResponse(
         status_code=status_code,
         content={
             "error": {
                 "code": code,
                 "message": message,
-                "trace_id": None,
+                "trace_id": trace_id,
                 "retryable": retryable,
             }
         },

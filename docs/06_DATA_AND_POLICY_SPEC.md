@@ -1,10 +1,10 @@
 # Data and Policy Specification
 
-## Synthetic-data principle
+## Synthetic-data boundary
 
-All data is created for this portfolio project. Names, transactions, policies and suppliers do not describe real organizations.
+All organizations, suppliers, policies and transactions in this repository are synthetic. They do not describe a real customer deployment.
 
-## Authoritative constants
+## Hero constants
 
 | Field | Value |
 |---|---:|
@@ -14,57 +14,30 @@ All data is created for this portfolio project. Names, transactions, policies an
 | Category | SPARE_PARTS |
 | Supplier | Atlas Endüstri |
 | Historical median | 184,500 TRY |
-| Received quotes | 1 |
-| Required quotes | 2 |
+| Received / required quotes | 1 / 2 |
 | ISO expiry | 2026-06-30 |
-| Supplier quality | 82 |
-| Standard lead time | 14 days |
-| Offered lead time | 20 days |
+| Standard / offered lead time | 14 / 20 days |
 
 ## Document metadata
 
-`data/documents.json` defines:
+`data/documents.json` records document ID, type, version, lifecycle status, effective period, replacement relationship, role allowlist, trust flag and file path. Retrieval filters by trust, role, type and effective period before returning content. The PoC serves only `CURRENT` documents inside their effective window; the superseded 2025 policy stays in the corpus as a stale-policy exclusion fixture and request dates outside the current window fail with an explicit error.
 
-- `document_id`
-- `version`
-- `status`
-- `effective_from`
-- `effective_to`
-- `superseded_by`
-- `allowed_roles`
-- `trusted_for_retrieval`
-- `file_path`
-- `supplier_name` for supplier attachments
+## Rule sources
 
-The application must filter by trust, role, type, status and effective date before returning document text.
+- `data/policy_rules.yaml` is the runtime configuration.
+- `evals/policy_oracle.yaml` is the independent evaluation oracle.
+- Human-readable policy Markdown is checked against runtime thresholds by `scripts/verify.py` and regression tests.
 
-## Policy sources
+Application runtime never imports the evaluation oracle.
 
-### Operational rule configuration
+## Purchase-history boundary
 
-`data/policy_rules.yaml` is used by the application.
-
-### Independent evaluation oracle
-
-`evals/policy_oracle.yaml` is used by future evaluation tooling. Application code must not import it.
-
-This separation does not make synthetic evaluation independent research; it prevents the runtime from reading expected test outputs directly.
-
-## Purchase-history invariant
-
-For completed `SPARE_PARTS` records, the median must remain exactly 184,500 TRY. `scripts/verify.py` checks this invariant.
-
-## Versioning invariant
-
-- `PROC-POL-2025` is superseded and ends on 2025-12-31.
-- `PROC-POL-2026` is current from 2026-01-01.
-- The request date is 2026-08-18.
-- Therefore the 2026 policy is the only valid procurement decision source.
+Only `COMPLETED` rows in the request category whose `purchase_date` is on or before `request_date` enter the median. The hero dataset must remain exactly 184,500 TRY; a backdated regression verifies future purchases are excluded.
 
 ## Untrusted content
 
-`data/supplier_attachment_untrusted.md` intentionally contains prompt-injection language. It may be displayed as evidence of an attempted attack but must never enter trusted policy context or alter a tool action. Analysis scans the requested supplier's untrusted attachments and records a `SECURITY_CONTENT_QUARANTINED` audit event with the document ID and the matched rule identifier, never the malicious text.
+`data/supplier_attachment_untrusted.md` intentionally contains prompt-injection language. The attachment is scanned as untrusted evidence, excluded from policy retrieval and citations, and represented in audit only by document ID and matched rule ID—not by the malicious text.
 
-## Retention
+## Local retention
 
-The PoC keeps local SQLite records until the runtime files are removed. A production design would define retention by data class, legal requirement and customer policy.
+SQLite files remain until the runtime volume or files are removed. A real deployment would define retention, deletion and legal-hold rules by customer policy and data class.

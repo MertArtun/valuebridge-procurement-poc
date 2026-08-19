@@ -5,6 +5,7 @@ import re
 from datetime import date
 from pathlib import Path
 
+from app.errors import ApplicablePolicyNotFoundError
 from app.models import PolicyDocument, PolicySection
 
 _SECTION_PATTERN = re.compile(r"^##\s+(?P<id>[0-9]+(?:\.[0-9]+)*)\s+—\s+(?P<title>.+)$")
@@ -39,6 +40,13 @@ class PolicyRepository:
         return attachments
 
     def current_policy(self, policy_type: str, on_date: date, role: str) -> PolicyDocument:
+        """Return the CURRENT policy effective on ``on_date``.
+
+        The PoC is bounded to the current policy set: only documents with
+        status CURRENT are eligible, and the request date must fall inside
+        their effective window. Superseded documents stay in the corpus as
+        stale-policy exclusion fixtures and are never selected.
+        """
         candidates: list[PolicyDocument] = []
         for document in self.searchable_documents(role):
             if document.document_type != policy_type or document.status != "CURRENT":
@@ -50,7 +58,9 @@ class PolicyRepository:
             candidates.append(document)
 
         if not candidates:
-            raise LookupError(f"No current {policy_type} policy is accessible for {on_date}")
+            raise ApplicablePolicyNotFoundError(
+                f"No accessible {policy_type} policy is effective for {on_date.isoformat()}"
+            )
         candidates.sort(key=lambda item: (item.effective_from, item.version), reverse=True)
         return candidates[0]
 

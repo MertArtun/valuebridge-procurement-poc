@@ -2,84 +2,60 @@
 
 ## Principle
 
-System claims must come from executable tests or a controlled pilot, not from manually typed success percentages.
+System claims must come from executable tests or a controlled pilot, not manually typed success percentages.
 
 ## Test layers
 
-### Unit tests
+### Domain tests
 
-- Decimal analysis
-- Policy rule evaluation
-- Role authorization
-- Injection detection
-- Policy version selection
+- Decimal arithmetic and request-date history boundary
+- Effective policy selection
+- Policy/runtime threshold alignment
+- Finance, quote and certificate decisions
+- Role authorization and injection detection
+- Retry-delay parsing and bounds
 
-### Integration tests
+### Integration and concurrency tests
 
-- Approval persistence
-- MockDesk idempotency
-- ValueBridge API hero flow
-- Future HTTP retry and action-preview contract
+- Approval persistence, rejection and expiry
+- Concurrent approve/reject and concurrent expiry
+- Same-key/same-payload idempotent replay
+- Same-key/different-payload conflict
+- Concurrent ticket creation with same and different keys
+- Structured domain failure and audit evidence
+- Safe browser rendering contract
 
-### Evaluation cases
+### Frozen evaluation cases
 
-`evals/` contains frozen machine-readable cases. `app/evaluation.py` executes them through `scripts/run_evals.py` (`make evals`) and writes `reports/evaluation.json`. Cases cover policy decisions, authorization, prompt injection, stale policy and idempotency.
-
-## Oracle separation
-
-The application reads `data/policy_rules.yaml`. Evaluation tooling reads `evals/policy_oracle.yaml`. The runner calculates expected behavior independently from application return values. A frozen case whose `expected` block contradicts the oracle fails as dataset drift.
-
-## Discovery evaluation
-
-Do not headline precision/recall from a transcript authored by the same developer. Prefer:
-
-- Unsupported extraction count
-- Evidence-anchor coverage
-- Inference correctly marked as inference
-- Human-accepted requirement count
-- Human-corrected requirement count
-- Requirement-to-test traceability coverage
-
-The starter does not automate discovery extraction, so these remain documentation practices rather than product metrics.
+`app/evaluation.py` executes JSONL cases from `evals/` through `scripts/run_evals.py` and writes `reports/evaluation.json`. Expected policy behavior comes from `evals/policy_oracle.yaml`, not application return values. A frozen case that contradicts the oracle fails as dataset drift.
 
 ## Objective system metrics
 
 - Policy decision matches oracle
-- Current policy selected
-- Citation section matches rule
-- Unauthorized document access count
+- Effective policy selected for request date
+- Citation section matches applied rule
+- Unauthorized access successes
 - Write without approval count
-- Duplicate ticket count
+- Duplicate ticket count under sequential and concurrent replay
+- Idempotency payload conflicts
 - Injection bypass count
-- Tool payload conforms to schema
+- Tool payload schema conformance
 
-## Workflow-impact metrics
+## Workflow impact
 
-These are `NOT_MEASURED` in the starter:
+Cycle time, manual touch count, approval turnaround, adoption, repeat use and estimated time saved remain `NOT_MEASURED`. Synthetic data is not used to claim customer impact.
 
-- End-to-end cycle time
-- Manual touch count
-- Approval turnaround
-- Fallback rate
-- Human correction rate
-- Adoption and repeat usage
-- Estimated time saved
-
-## Dataset discipline
-
-- Freeze evaluation cases before tuning prompts or retrieval settings.
-- Keep development examples separate from final evaluation cases.
-- Preserve failed cases in reports.
-- Generate README results only from the runner output.
-- Never delete a failed case solely to improve a score.
-
-## Required commands
+## Required verification
 
 ```bash
+ruff check .
+node --check app/static/app.js
 pytest -q
 python scripts/verify.py
 python scripts/run_evals.py
-ruff check .
+docker compose up -d --build
+bash scripts/demo.sh
+docker compose down -v
 ```
 
-Docker verification must be run separately on a Docker-capable machine.
+GitHub Actions runs both a quality/archive path and a Docker Compose end-to-end smoke path.

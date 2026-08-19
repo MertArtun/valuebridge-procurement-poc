@@ -4,6 +4,7 @@ import httpx
 import pytest
 from fastapi.testclient import TestClient
 
+from app.errors import MockDeskRequestError
 from app.main import create_app
 from app.mockdesk_client import HttpMockDeskGateway, MockDeskUnavailableError
 from app.service import ProcurementService
@@ -64,7 +65,7 @@ def test_client_error_400_is_not_retried() -> None:
 
     gateway, requests = build_gateway(handler, sleeps)
 
-    with pytest.raises(httpx.HTTPStatusError):
+    with pytest.raises(MockDeskRequestError):
         gateway.create_ticket(PAYLOAD, idempotency_key=IDEMPOTENCY_KEY)
 
     assert len(requests) == 1
@@ -79,7 +80,7 @@ def test_client_cancellation_499_is_not_retried() -> None:
 
     gateway, requests = build_gateway(handler, sleeps)
 
-    with pytest.raises(httpx.HTTPStatusError):
+    with pytest.raises(MockDeskRequestError):
         gateway.create_ticket(PAYLOAD, idempotency_key=IDEMPOTENCY_KEY)
 
     assert len(requests) == 1
@@ -171,6 +172,88 @@ def test_final_mockdesk_failure_returns_502_and_is_audited(tmp_path: Path) -> No
     failure_events = [event for event in events if event["event_type"] == "TOOL_EXECUTION_FAILED"]
     assert len(failure_events) == 1
     assert "MockDesk unavailable" in failure_events[0]["details"]["error"]
+
+
+def test_success_with_invalid_json_body_is_reported_as_request_error() -> None:
+    sleeps: list[float] = []
+
+    def handler(_call_number: int, _request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, content=b"<html>ticket MD-SECRET-9001</html>")
+
+    gateway, requests = build_gateway(handler, sleeps)
+
+    with pytest.raises(MockDeskRequestError) as excinfo:
+        gateway.create_ticket(PAYLOAD, idempotency_key=IDEMPOTENCY_KEY)
+
+    assert "HTTP 200" in str(excinfo.value)
+    assert "MD-SECRET-9001" not in str(excinfo.value)
+    assert len(requests) == 1
+    assert sleeps == []
+
+
+def test_success_with_schema_invalid_body_is_reported_as_request_error() -> None:
+    sleeps: list[float] = []
+
+    def handler(_call_number: int, _request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"ticket_id": "MD-1001", "status": "MYSTERY-9002"})
+
+    gateway, requests = build_gateway(handler, sleeps)
+
+    with pytest.raises(MockDeskRequestError) as excinfo:
+        gateway.create_ticket(PAYLOAD, idempotency_key=IDEMPOTENCY_KEY)
+
+    assert "HTTP 200" in str(excinfo.value)
+    assert "MYSTERY-9002" not in str(excinfo.value)
+    assert len(requests) == 1
+
+
+def test_success_with_empty_body_is_reported_as_request_error() -> None:
+    sleeps: list[float] = []
+
+    def handler(_call_number: int, _request: httpx.Request) -> httpx.Response:
+        return httpx.Response(204)
+
+    gateway, requests = build_gateway(handler, sleeps)
+
+    with pytest.raises(MockDeskRequestError) as excinfo:
+        gateway.create_ticket(PAYLOAD, idempotency_key=IDEMPOTENCY_KEY)
+
+    assert "HTTP 204" in str(excinfo.value)
+    assert len(requests) == 1
+
+
+def test_success_response_for_a_different_request_is_rejected() -> None:
+    sleeps: list[float] = []
+    foreign_ticket = dict(TICKET_JSON, request_id="PR-OTHER")
+
+    def handler(_call_number: int, _request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json=foreign_ticket)
+
+    gateway, _requests = build_gateway(handler, sleeps)
+
+    with pytest.raises(MockDeskRequestError) as excinfo:
+        gateway.create_ticket(PAYLOAD, idempotency_key=IDEMPOTENCY_KEY)
+
+    assert "did not match the submitted request" in str(excinfo.value)
+    assert "PR-OTHER" not in str(excinfo.value)
+
+
+def test_non_json_error_body_is_not_echoed_to_the_caller() -> None:
+    sleeps: list[float] = []
+    leaked = "Database password=hunter2\nTraceback (most recent call last):"
+
+    def handler(_call_number: int, _request: httpx.Request) -> httpx.Response:
+        return httpx.Response(500, text=leaked)
+
+    gateway, _requests = build_gateway(handler, sleeps)
+
+    with pytest.raises(MockDeskRequestError) as excinfo:
+        gateway.create_ticket(PAYLOAD, idempotency_key=IDEMPOTENCY_KEY)
+
+    message = str(excinfo.value)
+    assert "HTTP 500" in message
+    assert "hunter2" not in message
+    assert "Traceback" not in message
 
 
 def test_backoff_grows_between_transient_failures() -> None:

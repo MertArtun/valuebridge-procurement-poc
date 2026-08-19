@@ -1,7 +1,10 @@
-.PHONY: install test verify evals lint run-mockdesk run-app demo clean
+.PHONY: install lint test verify evals check run-mockdesk run-app demo docker-smoke clean
 
 install:
 	python -m pip install -e '.[dev]'
+
+lint:
+	ruff check .
 
 test:
 	pytest -q
@@ -12,8 +15,7 @@ verify:
 evals:
 	python scripts/run_evals.py
 
-lint:
-	ruff check .
+check: lint test verify evals
 
 run-mockdesk:
 	uvicorn mockdesk.main:app --reload --port 8001
@@ -24,5 +26,11 @@ run-app:
 demo:
 	bash scripts/demo.sh
 
+docker-smoke:
+	docker compose up -d --build
+	bash scripts/demo.sh || { docker compose down -v; exit 1; }
+	bash scripts/demo.sh || { docker compose down -v; exit 1; }
+	docker compose down -v
+
 clean:
-	rm -rf .pytest_cache .ruff_cache runtime/*.db __pycache__ app/__pycache__ mockdesk/__pycache__ tests/__pycache__
+	rm -rf .pytest_cache .ruff_cache runtime/*.db reports/*.json __pycache__ app/__pycache__ mockdesk/__pycache__ tests/__pycache__

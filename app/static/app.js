@@ -21,11 +21,19 @@ const APPROVAL_LABELS = {
   APPROVED: 'ONAYLANDI',
   REJECTED: 'REDDEDİLDİ',
   EXPIRED: 'SÜRESİ DOLDU',
+  SUPERSEDED: 'GEÇERSİZ KILINDI',
 };
 
-const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (character) => ({
-  '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
-}[character]));
+function createElement(tag, options = {}) {
+  const node = document.createElement(tag);
+  if (options.className) node.className = options.className;
+  if (options.text !== undefined) node.textContent = String(options.text);
+  return node;
+}
+
+function replaceChildren(selector, ...children) {
+  document.querySelector(selector).replaceChildren(...children);
+}
 
 function showBanner(selector, message) {
   const banner = document.querySelector(selector);
@@ -62,6 +70,49 @@ function errorMessage(body) {
   return 'Beklenmeyen hata.';
 }
 
+function renderMetrics(items) {
+  return items.map(([label, value]) => {
+    const wrapper = createElement('div', { className: 'metric' });
+    wrapper.append(
+      createElement('span', { text: label }),
+      createElement('strong', { text: value }),
+    );
+    return wrapper;
+  });
+}
+
+function renderAnalysis(body) {
+  replaceChildren(
+    '#analysis-summary',
+    ...renderMetrics([
+      ['Talep', `${Number(body.request.amount_try).toLocaleString('tr-TR')} TL`],
+      ['Geçmiş Medyan', `${Number(body.analysis.historical_median_try).toLocaleString('tr-TR')} TL`],
+      ['Fiyat Sapması', `%${body.analysis.display_variance_percent}`],
+      ['Sertifika', body.decision.certificate_status],
+    ]),
+  );
+
+  const reasons = body.decision.blocking_reasons.map((reason) =>
+    createElement('li', { text: reason }));
+  replaceChildren('#decision-reasons', ...reasons);
+
+  const citations = body.citations.map((citation) => {
+    const article = createElement('article', { className: 'citation' });
+    article.append(
+      createElement('strong', { text: `${citation.title} v${citation.version}` }),
+      createElement('span', {
+        text: `Bölüm ${citation.section_id} — ${citation.section_title}`,
+      }),
+      createElement('small', {
+        text: `${citation.status} · ${citation.effective_from}`,
+      }),
+    );
+    return article;
+  });
+  replaceChildren('#citations', ...citations);
+  document.querySelector('#explanation').textContent = body.explanation;
+}
+
 form.addEventListener('submit', async (event) => {
   event.preventDefault();
   statusBadge.textContent = 'ANALİZ EDİLİYOR';
@@ -92,59 +143,74 @@ form.addEventListener('submit', async (event) => {
     clearAnalysisResult();
     statusBadge.textContent = 'HATA';
     showBanner('#analysis-error', errorMessage(body));
+    await refreshAudit();
     return;
   }
 
-  approvalId = body.approval.approval_id;
+  approvalId = body.approval ? body.approval.approval_id : null;
   analysisTraceId = body.trace_id;
-  approvalStatus.textContent = APPROVAL_LABELS[body.approval.status] || body.approval.status;
   hideBanner('#security-notice');
   hideBanner('#execution-success');
   hideBanner('#duplicate-notice');
   hideBanner('#action-error');
   document.querySelector('#action-result').textContent = '';
   statusBadge.textContent = body.decision.decision_status;
-  document.querySelector('#analysis-summary').innerHTML = [
-    ['Talep', `${Number(body.request.amount_try).toLocaleString('tr-TR')} TL`],
-    ['Geçmiş Medyan', `${Number(body.analysis.historical_median_try).toLocaleString('tr-TR')} TL`],
-    ['Fiyat Sapması', `%${body.analysis.display_variance_percent}`],
-    ['Sertifika', body.decision.certificate_status],
-  ].map(([label, value]) => `<div class="metric"><span>${label}</span><strong>${value}</strong></div>`).join('');
-  document.querySelector('#decision-reasons').innerHTML = body.decision.blocking_reasons
-    .map((reason) => `<li>${reason}</li>`).join('');
-  document.querySelector('#citations').innerHTML = body.citations.map((citation) => `
-    <article class="citation">
-      <strong>${citation.title} v${citation.version}</strong>
-      <span>Bölüm ${citation.section_id} — ${citation.section_title}</span>
-      <small>${citation.status} · ${citation.effective_from}</small>
-    </article>`).join('');
-  document.querySelector('#explanation').textContent = body.explanation;
+  renderAnalysis(body);
   analysisCard.classList.remove('hidden');
-  approvalCard.classList.remove('hidden');
-  approveButton.disabled = false;
-  rejectButton.disabled = false;
-  executeButton.disabled = true;
-  await renderActionPreview();
+
+  if (body.approval) {
+    approvalStatus.textContent = APPROVAL_LABELS[body.approval.status] || body.approval.status;
+    approvalCard.classList.remove('hidden');
+    approveButton.disabled = true;
+    rejectButton.disabled = true;
+    executeButton.disabled = true;
+    const previewLoaded = await renderActionPreview();
+    applyApprovalState(body.approval, previewLoaded);
+  } else {
+    approvalCard.classList.add('hidden');
+  }
   await refreshAudit();
 });
 
+function applyApprovalState(approval, previewLoaded) {
+  const isPending = approval.status === 'PENDING';
+  const isApproved = approval.status === 'APPROVED';
+  approveButton.disabled = !(isPending && previewLoaded);
+  rejectButton.disabled = !(isPending && previewLoaded);
+  executeButton.disabled = !isApproved;
+}
+
 async function renderActionPreview() {
   const container = document.querySelector('#action-preview');
-  const response = await fetch(`/api/v1/approvals/${approvalId}/action-preview`, {
-    headers: headers('procurement_specialist', 'procurement_user'),
-  });
-  const preview = await response.json();
-  if (!response.ok) {
-    container.innerHTML = `<pre>${JSON.stringify(preview, null, 2)}</pre>`;
-    return;
+  let response;
+  let preview;
+  try {
+    response = await fetch(`/api/v1/approvals/${approvalId}/action-preview`, {
+      headers: headers('procurement_specialist', 'procurement_user'),
+    });
+    preview = await response.json();
+  } catch (previewError) {
+    container.replaceChildren(createElement('p', { text: 'Aksiyon önizlemesi alınamadı.' }));
+    showBanner('#action-error', `Aksiyon önizlemesi alınamadı: ${previewError.message}`);
+    return false;
   }
-  container.innerHTML = `
-    <h3>Gönderilecek Aksiyon</h3>
-    <div class="metric"><span>Hedef Sistem</span><strong>${preview.target_system}</strong></div>
-    <div class="metric"><span>Operasyon</span><strong>${preview.operation}</strong></div>
-    <div class="metric"><span>Idempotency Anahtarı</span><strong>${preview.idempotency_key}</strong></div>
-    <div class="metric"><span>Gereken Onay Rolü</span><strong>${preview.required_role}</strong></div>
-    <pre>${JSON.stringify(preview.payload, null, 2)}</pre>`;
+  if (!response.ok) {
+    const pre = createElement('pre', { text: JSON.stringify(preview, null, 2) });
+    container.replaceChildren(pre);
+    showBanner('#action-error', errorMessage(preview));
+    return false;
+  }
+
+  const title = createElement('h3', { text: 'Gönderilecek Aksiyon' });
+  const metrics = renderMetrics([
+    ['Hedef Sistem', preview.target_system],
+    ['Operasyon', preview.operation],
+    ['Idempotency Anahtarı', preview.idempotency_key],
+    ['Gereken Onay Rolü', preview.required_role],
+  ]);
+  const payload = createElement('pre', { text: JSON.stringify(preview.payload, null, 2) });
+  container.replaceChildren(title, ...metrics, payload);
+  return true;
 }
 
 approveButton.addEventListener('click', async () => {
@@ -214,6 +280,25 @@ executeButton.addEventListener('click', async () => {
 
 auditButton.addEventListener('click', refreshAudit);
 
+function auditEventNode(item) {
+  const details = createElement('details', { className: 'audit-event' });
+  const summary = createElement('summary');
+  summary.append(
+    createElement('code', { text: item.event_type }),
+    createElement('span', { text: item.actor }),
+    createElement('small', { text: item.timestamp }),
+  );
+  const body = createElement('div', { className: 'audit-detail' });
+  const trace = createElement('p', { className: 'audit-trace' });
+  trace.append(
+    document.createTextNode('Trace ID: '),
+    createElement('code', { text: item.trace_id }),
+  );
+  body.append(trace, createElement('pre', { text: JSON.stringify(item.details, null, 2) }));
+  details.append(summary, body);
+  return details;
+}
+
 async function refreshAudit() {
   const response = await fetch('/api/v1/audit/events', {
     headers: headers('solution_engineer', 'solution_engineer'),
@@ -221,21 +306,14 @@ async function refreshAudit() {
   const events = await response.json();
   const container = document.querySelector('#audit-events');
   if (!response.ok || !Array.isArray(events)) {
-    container.innerHTML = `<pre>${JSON.stringify(events, null, 2)}</pre>`;
+    container.replaceChildren(createElement('pre', { text: JSON.stringify(events, null, 2) }));
     return;
   }
-  container.innerHTML = events.length ? events.map((item) => `
-    <details class="audit-event">
-      <summary>
-        <code>${escapeHtml(item.event_type)}</code>
-        <span>${escapeHtml(item.actor)}</span>
-        <small>${escapeHtml(item.timestamp)}</small>
-      </summary>
-      <div class="audit-detail">
-        <p class="audit-trace">Trace ID: <code>${escapeHtml(item.trace_id)}</code></p>
-        <pre>${escapeHtml(JSON.stringify(item.details, null, 2))}</pre>
-      </div>
-    </details>`).join('') : '<p>Henüz olay yok.</p>';
+  if (events.length) {
+    container.replaceChildren(...events.map(auditEventNode));
+  } else {
+    container.replaceChildren(createElement('p', { text: 'Henüz olay yok.' }));
+  }
   renderSecurityNotice(events);
 }
 

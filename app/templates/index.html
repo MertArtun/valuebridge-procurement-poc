@@ -31,14 +31,14 @@
         </div>
         <span class="status" id="workflow-status">ANALİZE HAZIR</span>
       </div>
-      <form id="request-form" class="form-grid">
-        <label>Talep Kimliği<input name="request_id" value="{{ hero.request_id }}"></label>
-        <label>Talep Tarihi<input name="request_date" type="date" value="{{ hero.request_date }}"></label>
-        <label>Tedarikçi<input name="supplier_name" value="{{ hero.supplier_name }}"></label>
-        <label>Kategori<input name="category" value="{{ hero.category }}"></label>
-        <label>Tutar (TL)<input name="amount_try" type="number" value="{{ hero.amount_try }}"></label>
-        <label>Mevcut Teklif<input name="received_quotes" type="number" value="{{ hero.received_quotes }}"></label>
-        <label>Teklif Edilen Teslim (gün)<input name="offered_lead_time_days" type="number" value="{{ hero.offered_lead_time_days }}"></label>
+      <form id="request-form" class="form-grid" autocomplete="off">
+        <label>Talep Kimliği<input name="request_id" value="{{ hero.request_id }}" maxlength="64" pattern="[A-Z0-9][A-Z0-9._-]*" required></label>
+        <label>Talep Tarihi<input name="request_date" type="date" value="{{ hero.request_date }}" required></label>
+        <label>Tedarikçi<input name="supplier_name" value="{{ hero.supplier_name }}" maxlength="120" required></label>
+        <label>Kategori<input name="category" value="{{ hero.category }}" maxlength="64" pattern="[A-Z0-9_]+" required></label>
+        <label>Tutar (TL)<input name="amount_try" type="number" min="0.01" step="0.01" value="{{ hero.amount_try }}" required></label>
+        <label>Mevcut Teklif<input name="received_quotes" type="number" min="0" max="100" value="{{ hero.received_quotes }}" required></label>
+        <label>Teklif Edilen Teslim (gün)<input name="offered_lead_time_days" type="number" min="0" max="3650" value="{{ hero.offered_lead_time_days }}" required></label>
         <button class="primary" type="submit">Talebi Analiz Et</button>
       </form>
       <div class="state-banner state-info hidden" id="analysis-loading" role="status" aria-live="polite">Analiz çalışıyor…</div>

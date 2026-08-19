@@ -1,6 +1,9 @@
 from datetime import date
 from pathlib import Path
 
+import pytest
+
+from app.errors import ApplicablePolicyNotFoundError
 from app.retrieval import PolicyRepository
 
 
@@ -33,6 +36,17 @@ def test_current_supplier_compliance_policy_exposes_certificate_section() -> Non
     assert policy.version == "2026.1"
     assert policy.status == "CURRENT"
     assert "ISO 9001" in policy.section("3.1").body
+
+
+def test_dates_outside_the_current_policy_window_are_rejected() -> None:
+    repository = PolicyRepository(Path("data/documents.json"))
+
+    with pytest.raises(ApplicablePolicyNotFoundError):
+        repository.current_policy(
+            policy_type="PROCUREMENT_POLICY",
+            on_date=date(2025, 8, 1),
+            role="procurement_specialist",
+        )
 
 
 def test_untrusted_supplier_attachment_is_not_a_policy_source() -> None:

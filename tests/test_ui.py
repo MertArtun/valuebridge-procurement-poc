@@ -8,25 +8,20 @@ from app.service import ProcurementService
 from app.store import SQLiteStore
 from mockdesk.store import MockDeskStore
 
+ROOT = Path(__file__).resolve().parents[1]
+
 
 def _client(tmp_path: Path) -> TestClient:
     service = ProcurementService.from_project_data(
         store=SQLiteStore(tmp_path / "valuebridge.db"),
         mockdesk_gateway=InProcessMockDeskGateway(MockDeskStore(tmp_path / "mockdesk.db")),
-        project_root=Path.cwd(),
+        project_root=ROOT,
     )
     return TestClient(create_app(service=service))
 
 
 def test_home_exposes_the_interactive_hero_flow(tmp_path: Path) -> None:
-    service = ProcurementService.from_project_data(
-        store=SQLiteStore(tmp_path / "valuebridge.db"),
-        mockdesk_gateway=InProcessMockDeskGateway(MockDeskStore(tmp_path / "mockdesk.db")),
-        project_root=Path.cwd(),
-    )
-    client = TestClient(create_app(service=service))
-
-    response = client.get("/")
+    response = _client(tmp_path).get("/")
 
     assert response.status_code == 200
     assert "Talebi Analiz Et" in response.text
@@ -92,14 +87,45 @@ def test_failed_analysis_clears_the_stale_decision_and_approval(tmp_path: Path) 
     assert "approvalCard.classList.add('hidden')" in reset
 
 
-def test_audit_drawer_reveals_details_json_and_trace_id_on_interaction(tmp_path: Path) -> None:
+def test_approval_buttons_wait_for_a_successful_action_preview(tmp_path: Path) -> None:
+    script = _client(tmp_path).get("/static/app.js").text
+    submit_handler = script.split("form.addEventListener", 1)[1].split("async function", 1)[0]
+    preview = script.split("async function renderActionPreview() {", 1)[-1].split("\n}", 1)[0]
+
+    assert "approveButton.disabled = false" not in submit_handler, submit_handler
+    assert "rejectButton.disabled = false" not in submit_handler, submit_handler
+    assert "const previewLoaded = await renderActionPreview();" in submit_handler
+    assert "applyApprovalState(body.approval, previewLoaded);" in submit_handler
+    assert submit_handler.index("await renderActionPreview()") < submit_handler.index(
+        "applyApprovalState(body.approval, previewLoaded);"
+    )
+    assert "catch (previewError)" in preview
+    assert "showBanner('#action-error'" in preview
+    assert preview.count("return false;") == 2, preview
+    assert "return true;" in preview
+
+
+def test_approval_controls_follow_the_approval_state(tmp_path: Path) -> None:
+    script = _client(tmp_path).get("/static/app.js").text
+    state_fn = script.split("function applyApprovalState(", 1)[-1].split("\n}", 1)[0]
+
+    assert "function applyApprovalState(" in script
+    assert "approval.status === 'PENDING'" in state_fn
+    assert "approval.status === 'APPROVED'" in state_fn
+    assert "approveButton.disabled = !(isPending && previewLoaded);" in state_fn
+    assert "rejectButton.disabled = !(isPending && previewLoaded);" in state_fn
+    assert "executeButton.disabled = !isApproved;" in state_fn
+
+
+def test_audit_drawer_uses_safe_dom_nodes_for_trace_and_json(tmp_path: Path) -> None:
     script = _client(tmp_path).get("/static/app.js").text
 
-    assert "<details" in script
-    assert "<summary" in script
+    assert "createElement('details'" in script
+    assert "createElement('summary'" in script
     assert "Trace ID" in script
     assert "item.trace_id" in script
     assert "JSON.stringify(item.details" in script
+    assert ".innerHTML" not in script
 
 
 def test_stylesheet_ships_keyboard_focus_styles(tmp_path: Path) -> None:

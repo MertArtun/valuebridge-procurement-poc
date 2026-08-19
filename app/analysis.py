@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import csv
-from decimal import ROUND_HALF_UP, Decimal
+from datetime import date
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from pathlib import Path
 from statistics import median
 
+from app.errors import PurchaseHistoryInvalidError, PurchaseHistoryNotFoundError
 from app.models import PurchaseAnalysis, PurchaseRequest
 
 
@@ -16,12 +18,31 @@ def analyze_purchase_history(
 ) -> PurchaseAnalysis:
     amounts: list[Decimal] = []
     with purchase_history_path.open(newline="", encoding="utf-8") as handle:
-        for row in csv.DictReader(handle):
-            if row["category"] == request.category and row["status"] == "COMPLETED":
-                amounts.append(Decimal(row["amount_try"]))
+        reader = csv.DictReader(handle)
+        for row in reader:
+            if row["category"] != request.category or row["status"] != "COMPLETED":
+                continue
+            try:
+                purchase_date = date.fromisoformat(row["purchase_date"])
+            except ValueError as exc:
+                raise PurchaseHistoryInvalidError(
+                    f"Invalid purchase_date at line {reader.line_num} "
+                    f"of {purchase_history_path.name}"
+                ) from exc
+            if purchase_date <= request.request_date:
+                try:
+                    amounts.append(Decimal(row["amount_try"]))
+                except InvalidOperation as exc:
+                    raise PurchaseHistoryInvalidError(
+                        f"Invalid amount_try at line {reader.line_num} "
+                        f"of {purchase_history_path.name}"
+                    ) from exc
 
     if not amounts:
-        raise ValueError(f"No completed history found for category {request.category}")
+        raise PurchaseHistoryNotFoundError(
+            f"No completed history found for category {request.category!r} "
+            f"on or before {request.request_date.isoformat()}"
+        )
 
     historical_median = Decimal(median(amounts))
     variance = (

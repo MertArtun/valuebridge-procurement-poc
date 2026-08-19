@@ -1,6 +1,3 @@
-class ApprovalRequiredError(RuntimeError):
-    """Raised when a write action is attempted without explicit approval."""
+from app.errors import ApprovalRequiredError, InvalidApprovalStateError
 
-
-class InvalidApprovalStateError(RuntimeError):
-    """Raised when an approval transition is attempted from a terminal state."""
+__all__ = ["ApprovalRequiredError", "InvalidApprovalStateError"]

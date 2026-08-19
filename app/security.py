@@ -2,10 +2,7 @@ from __future__ import annotations
 
 import re
 
-
-class AuthorizationError(PermissionError):
-    pass
-
+from app.errors import AuthorizationError
 
 _ACTION_ROLES: dict[str, set[str]] = {
     "analyze_request": {"procurement_specialist", "solution_engineer"},
