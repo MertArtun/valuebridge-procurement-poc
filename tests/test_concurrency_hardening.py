@@ -7,11 +7,12 @@ from threading import Barrier
 
 import pytest
 
-from app.errors import IdempotencyConflictError, InvalidApprovalStateError
+from app.errors import InvalidApprovalStateError
 from app.mockdesk_client import InProcessMockDeskGateway
 from app.models import PurchaseRequest
 from app.service import ProcurementService
 from app.store import SQLiteStore
+from mockdesk.errors import IdempotencyConflictError
 from mockdesk.store import MockDeskStore
 
 ROOT = Path(__file__).resolve().parents[1]

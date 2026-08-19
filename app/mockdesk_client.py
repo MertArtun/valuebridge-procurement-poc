@@ -16,6 +16,7 @@ from app.errors import (
     MockDeskUnavailableError,
 )
 from app.models import TicketResult
+from mockdesk.errors import IdempotencyConflictError as MockDeskIdempotencyConflictError
 from mockdesk.store import MockDeskStore
 
 _RETRYABLE_STATUS_CODES = {429, 503, 504}
@@ -33,7 +34,11 @@ class InProcessMockDeskGateway:
         self._store = store
 
     def create_ticket(self, payload: dict[str, object], idempotency_key: str) -> TicketResult:
-        return self._store.create_ticket(payload, idempotency_key)
+        try:
+            result = self._store.create_ticket(payload, idempotency_key)
+        except MockDeskIdempotencyConflictError as exc:
+            raise IdempotencyConflictError(str(exc)) from exc
+        return TicketResult.model_validate(result.model_dump())
 
 
 class HttpMockDeskGateway:

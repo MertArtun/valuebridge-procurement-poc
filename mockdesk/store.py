@@ -5,8 +5,8 @@ import json
 import sqlite3
 from pathlib import Path
 
-from app.errors import IdempotencyConflictError
-from app.models import TicketResult
+from mockdesk.errors import IdempotencyConflictError
+from mockdesk.models import TicketResult
 
 
 def _canonical_payload(payload: dict[str, object]) -> str:
