@@ -29,7 +29,9 @@ cp ~/valuebridge/app/.env.example ~/valuebridge/.env   # then fill it in
 also exist before the first `up`, otherwise Docker creates a directory in its
 place; an empty index is fine because policy retrieval falls back to lexical
 scoring. Build it with `python scripts/embed_policy_sections.py` and copy the
-generated `data/policy_embeddings.json` to `~/valuebridge/`.
+generated `data/policy_embeddings.json` to `~/valuebridge/`, then make it
+world-readable (`chmod 644`): the container runs as a non-root user, so a
+0600 index mounts fine but fails to open, silently degrading QA to lexical.
 
 Point the DNS name at the host before starting: `sslip.io` resolves
 `valuebridge.62-238-40-66.sslip.io` to `62.238.40.66` on its own, so only

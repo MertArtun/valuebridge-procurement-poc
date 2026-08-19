@@ -8,9 +8,7 @@ ValueBridge is a bounded, production-minded portfolio PoC showing how a Solution
 
 ## Live demo
 
-**https://valuebridge.62-238-40-66.sslip.io** — *coming soon; the link activates once the hosted deployment is published.*
-
-Until then, [Quick start](#quick-start) brings the same system up locally in two commands, and `bash scripts/demo.sh` asserts the whole path end to end.
+**https://valuebridge.62-238-40-66.sslip.io** — live hosted demo (rate-limited, database resets nightly). The [Quick start](#quick-start) brings the same system up locally in two commands, and `bash scripts/demo.sh` asserts the whole path end to end.
 
 ## Türkçe özet
 
