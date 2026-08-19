@@ -28,6 +28,11 @@ const APPROVAL_LABELS = {
   SUPERSEDED: 'GEÇERSİZ KILINDI',
 };
 
+const RETRIEVAL_MODE_LABELS = {
+  lexical: 'Sözcüksel arama',
+  hybrid: 'Hibrit (vektör + sözcüksel)',
+};
+
 function createElement(tag, options = {}) {
   const node = document.createElement(tag);
   if (options.className) node.className = options.className;
@@ -355,7 +360,8 @@ qaButton.addEventListener('click', async () => {
     return;
   }
 
-  document.querySelector('#qa-mode').textContent = `Getirme modu: ${body.retrieval_mode} · ${onDate} tarihinde yürürlükteki politikalar`;
+  const modeLabel = RETRIEVAL_MODE_LABELS[body.retrieval_mode] || body.retrieval_mode;
+  document.querySelector('#qa-mode').textContent = `Getirme modu: ${modeLabel} · ${onDate} tarihinde yürürlükteki politikalar`;
   const sections = body.sections.map((section) => {
     const article = createElement('article', { className: 'citation' });
     article.append(

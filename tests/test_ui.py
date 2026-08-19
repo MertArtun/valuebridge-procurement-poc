@@ -184,6 +184,16 @@ def test_policy_question_card_posts_the_form_date_and_renders_text_only(tmp_path
     assert "body.retrieval_mode" in handler
 
 
+def test_retrieval_mode_is_shown_as_a_turkish_label(tmp_path: Path) -> None:
+    script = _client(tmp_path).get("/static/app.js").text
+    handler = script.split("qaButton.addEventListener", 1)[1].split("\n});", 1)[0]
+
+    assert "lexical: 'Sözcüksel arama'" in script
+    assert "hybrid: 'Hibrit (vektör + sözcüksel)'" in script
+    assert "RETRIEVAL_MODE_LABELS[body.retrieval_mode]" in handler
+    assert "#qa-mode').textContent = `Getirme modu: ${modeLabel}" in handler
+
+
 def test_intake_clears_fields_the_assistant_could_not_extract(tmp_path: Path) -> None:
     script = _client(tmp_path).get("/static/app.js").text
     apply_draft = script.split("function applyDraft(", 1)[1].split("\n}", 1)[0]

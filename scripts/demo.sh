@@ -114,4 +114,32 @@ required = {
 assert required <= events, required - events
 PY
 
+printf '\n7) Prove the intake assistant stays off without provider credentials\n'
+request 503 "$TMP_DIR/intake.json" -X POST "$BASE_URL/api/v1/requests/intake" \
+  -H 'Content-Type: application/json' \
+  -H 'X-Demo-Role: procurement_specialist' \
+  -H 'X-Demo-User: procurement_user' \
+  -d '{"text":"Atlas Endüstri'"'"'den 220.000 TL yedek parça alacağız."}'
+"$PYTHON_BIN" -m json.tool "$TMP_DIR/intake.json"
+"$PYTHON_BIN" - "$TMP_DIR/intake.json" <<'PY'
+import json, sys
+body = json.load(open(sys.argv[1]))
+assert body["error"]["code"] == "LLM_DISABLED", body
+PY
+
+printf '\n8) Answer a policy question from governed lexical retrieval\n'
+request 200 "$TMP_DIR/policy_qa.json" -X POST "$BASE_URL/api/v1/policies/ask" \
+  -H 'Content-Type: application/json' \
+  -H 'X-Demo-Role: procurement_specialist' \
+  -H 'X-Demo-User: procurement_user' \
+  -d '{"question":"Finans yöneticisi onayı hangi tutarın üzerinde gerekir?","on_date":"2026-08-18"}'
+"$PYTHON_BIN" -m json.tool "$TMP_DIR/policy_qa.json"
+"$PYTHON_BIN" - "$TMP_DIR/policy_qa.json" <<'PY'
+import json, sys
+body = json.load(open(sys.argv[1]))
+assert body["retrieval_mode"] == "lexical", body
+assert body["sections"], body
+assert body["sections"][0]["document_id"] == "PROC-POL-2026", body
+PY
+
 echo "PASS: end-to-end demo assertions"

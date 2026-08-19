@@ -19,10 +19,11 @@ if str(ROOT) not in sys.path:
 from fastapi.testclient import TestClient  # noqa: E402
 
 from app.analysis import analyze_purchase_history  # noqa: E402
-from app.errors import ApplicablePolicyNotFoundError  # noqa: E402
+from app.errors import ApplicablePolicyNotFoundError, LlmDisabledError  # noqa: E402
 from app.main import create_app  # noqa: E402
 from app.mockdesk_client import InProcessMockDeskGateway  # noqa: E402
 from app.models import PurchaseRequest  # noqa: E402
+from app.policy_qa import PolicyQaService  # noqa: E402
 from app.retrieval import PolicyRepository  # noqa: E402
 from app.service import ProcurementService  # noqa: E402
 from app.store import SQLiteStore  # noqa: E402
@@ -151,6 +152,41 @@ def check_hero_api_flow() -> None:
         assert second["status"] == "ALREADY_PROCESSED"
 
 
+def check_intake_needs_a_configured_model() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        temp = Path(directory)
+        service = ProcurementService.from_project_data(
+            store=SQLiteStore(temp / "valuebridge.db"),
+            mockdesk_gateway=InProcessMockDeskGateway(MockDeskStore(temp / "mockdesk.db")),
+            project_root=ROOT,
+        )
+        assert service.chat_client is None
+        try:
+            service.draft_intake(
+                "Atlas Endüstri'den 220.000 TL yedek parça alacağız.",
+                role="procurement_specialist",
+                user="verify",
+            )
+        except LlmDisabledError:
+            pass
+        else:
+            raise AssertionError("intake must refuse to draft without a configured model")
+
+
+def check_lexical_policy_answer() -> None:
+    service = PolicyQaService(PolicyRepository(ROOT / "data/documents.json"))
+    result = service.ask(
+        "Finans yöneticisi onayı hangi tutarın üzerinde gerekir?",
+        on_date=date(2026, 8, 18),
+        role="procurement_specialist",
+    )
+    assert result["retrieval_mode"] == "lexical"
+    sections = result["sections"]
+    assert sections, "the finance-threshold question must retrieve at least one section"
+    assert sections[0]["document_id"] == "PROC-POL-2026"
+    assert sections[0]["section_id"] == "4.2"
+
+
 def main() -> None:
     checks = [
         ("history median", check_history_median),
@@ -160,6 +196,8 @@ def main() -> None:
         ("JSON and JSONL", check_json_and_jsonl),
         ("browser and Docker hardening", check_browser_and_docker_hardening),
         ("hero API flow", check_hero_api_flow),
+        ("keyless intake refusal", check_intake_needs_a_configured_model),
+        ("lexical policy answer", check_lexical_policy_answer),
     ]
     for name, check in checks:
         check()
