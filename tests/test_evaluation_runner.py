@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 from app.evaluation import run_evaluation, write_report
+from app.retrieval import PolicyRepository
 
 TEMPORARY_ORACLE = """\
 version: "oracle-test"
@@ -126,3 +127,24 @@ def test_project_evaluation_cases_pass() -> None:
     assert report["counts"]["failed"] == 0
     assert report["counts"]["passed"] == len(report["cases"])
     assert report["counts"]["passed"] > 0
+
+
+def test_untrusted_retrieval_case_fails_when_the_trust_filter_is_removed(monkeypatch) -> None:
+    def every_document(self, role: str):
+        return [
+            self._load_document(entry)
+            for entry in self._entries
+            if role in entry["allowed_roles"]
+        ]
+
+    monkeypatch.setattr(PolicyRepository, "searchable_documents", every_document)
+
+    report = run_evaluation(
+        [Path("evals/rag_cases.jsonl")],
+        oracle_path=Path("evals/policy_oracle.yaml"),
+        policy_rules_path=PROJECT_RULES,
+    )
+
+    untrusted = next(case for case in report["cases"] if case["case_id"] == "RAG-002")
+    assert untrusted["status"] == "FAILED"
+    assert untrusted["actual"]["untrusted_retrieved"] is True

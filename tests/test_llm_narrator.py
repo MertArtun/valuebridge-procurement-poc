@@ -114,3 +114,21 @@ def test_untrusted_attachment_is_handed_to_the_narrator_as_delimited_data(
     assert json.loads(user.split("\n\n", 1)[0])["decision"] == plain["decision"]
     assert narrated["decision"] == plain["decision"]
     assert narrated["citations"] == plain["citations"]
+
+
+def test_a_failing_narrator_is_recorded_in_the_audit_trail(tmp_path: Path) -> None:
+    service = build_service(tmp_path / "raising", RaisingChatClient())
+    client = TestClient(create_app(service=service))
+    plain = TestClient(create_app(service=build_service(tmp_path / "plain")))
+
+    body = client.post("/api/v1/requests/analyze", headers=PROCUREMENT, json=HERO_REQUEST).json()
+
+    events = client.get("/api/v1/audit/events", headers=AUDIT).json()
+    skipped = [event for event in events if event["event_type"] == "NARRATION_SKIPPED"]
+    assert len(skipped) == 1
+    assert skipped[0]["request_id"] == HERO_REQUEST["request_id"]
+    assert skipped[0]["trace_id"] == body["trace_id"]
+    assert skipped[0]["details"]["reason"] == "LlmUnavailableError"
+    plain.post("/api/v1/requests/analyze", headers=PROCUREMENT, json=HERO_REQUEST)
+    quiet = plain.get("/api/v1/audit/events", headers=AUDIT).json()
+    assert not [event for event in quiet if event["event_type"] == "NARRATION_SKIPPED"]

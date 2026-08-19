@@ -34,6 +34,9 @@ _LEXICAL_WEIGHT = 0.5
 _VECTOR_WEIGHT = 0.5
 _TOKEN_PATTERN = re.compile(r"\w+", re.UNICODE)
 _MIN_TOKEN_LENGTH = 2
+# str.casefold maps İ to "i" + U+0307, a combining mark \w does not match, which
+# would split the word and drop the leading letter. Lowercase Turkish first.
+_TURKISH_LOWERCASE = str.maketrans({"İ": "i", "I": "ı"})
 _STOPWORDS = frozenset(
     {
         "ve",
@@ -68,9 +71,10 @@ Candidate = tuple[PolicyDocument, PolicySection]
 
 
 def _tokenize(text: str) -> list[str]:
+    folded = text.translate(_TURKISH_LOWERCASE).casefold()
     return [
         token
-        for token in _TOKEN_PATTERN.findall(text.casefold())
+        for token in _TOKEN_PATTERN.findall(folded)
         if len(token) >= _MIN_TOKEN_LENGTH and token not in _STOPWORDS
     ]
 

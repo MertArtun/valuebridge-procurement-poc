@@ -267,9 +267,12 @@ class ProcurementService:
         # shown to the reviewer, but it must not stop the draft.
         injection_rule_id = matched_injection_rule(text)
         if self.chat_client is None:
-            raise LlmDisabledError(
+            disabled = LlmDisabledError(
                 "Intake assistant is disabled; configure VALUEBRIDGE_LLM_API_KEY to enable it"
-            ).attach_trace(trace_id)
+            )
+            disabled.attach_trace(trace_id)
+            self._audit_intake_failure(disabled.code, user=user, trace_id=trace_id)
+            raise disabled
         try:
             completion = self.chat_client.complete(
                 system=load_prompt("intake_system"),
@@ -323,10 +326,19 @@ class ProcurementService:
                 details={"role": role[:64], "action": "ask_policy_question"},
             )
             raise
+        # The question is data, never an instruction: a match is recorded for the
+        # auditor, but it must not change what retrieval returns.
+        injection_rule_id = matched_injection_rule(question)
         try:
             result = self.policy_qa.ask(question, on_date=on_date, role=role)
         except ValueBridgeError as exc:
             exc.attach_trace(trace_id)
+            self.store.add_audit(
+                event_type="POLICY_QA_FAILED",
+                actor=user,
+                trace_id=trace_id,
+                details={"code": exc.code, "injection_rule_id": injection_rule_id},
+            )
             raise
         sections = result["sections"]
         self.store.add_audit(
@@ -337,6 +349,7 @@ class ProcurementService:
                 "question": question[:120],
                 "retrieval_mode": result["retrieval_mode"],
                 "section_ids": [section["section_id"] for section in sections],
+                "injection_rule_id": injection_rule_id,
             },
         )
         return PolicyQaResponse(
@@ -418,9 +431,17 @@ class ProcurementService:
                 system=load_prompt("narrator_system"),
                 user=self._narrator_user_message(response),
             )
-        except Exception:
+        except Exception as exc:
             # The narrative is display-only: a failing or slow provider must
-            # never change the decision or fail the analysis.
+            # never change the decision or fail the analysis, but a persistently
+            # broken provider has to be visible in the trail.
+            self.store.add_audit(
+                event_type="NARRATION_SKIPPED",
+                actor="system",
+                request_id=response.request.request_id,
+                trace_id=response.trace_id,
+                details={"reason": type(exc).__name__},
+            )
             return None
         return narrative.strip() or None
 

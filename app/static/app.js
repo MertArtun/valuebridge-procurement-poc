@@ -125,9 +125,9 @@ function renderAnalysis(body) {
 
 function applyDraft(draft) {
   Object.entries(draft).forEach(([name, value]) => {
-    if (value === null) return;
     const field = form.elements.namedItem(name);
-    if (field) field.value = String(value);
+    if (!field) return;
+    field.value = value === null ? '' : String(value);
   });
 }
 
@@ -152,6 +152,8 @@ intakeButton.addEventListener('click', async () => {
     return;
   }
 
+  clearAnalysisResult();
+  statusBadge.textContent = 'ANALİZE HAZIR';
   applyDraft(body.draft);
   const notes = body.missing_fields.length
     ? [`Eksik alanlar elle doldurulmalı: ${body.missing_fields.join(', ')}.`]

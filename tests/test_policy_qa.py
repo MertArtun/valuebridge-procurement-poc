@@ -20,6 +20,7 @@ ROOT = Path(__file__).resolve().parents[1]
 PROCUREMENT = {"X-Demo-Role": "procurement_specialist", "X-Demo-User": "procurement_user"}
 FINANCE = {"X-Demo-Role": "finance_approver", "X-Demo-User": "finance_user"}
 AUDIT = {"X-Demo-Role": "solution_engineer", "X-Demo-User": "solution_engineer"}
+AUDITOR = {"X-Demo-Role": "auditor", "X-Demo-User": "auditor_user"}
 
 ON_DATE = date(2026, 8, 18)
 FINANCE_QUESTION = "Finans yöneticisi onayı hangi tutarın üzerinde gerekir?"
@@ -231,13 +232,14 @@ def test_policy_question_is_denied_for_roles_outside_the_action(tmp_path: Path) 
 def test_finance_and_auditor_roles_may_ask_policy_questions(tmp_path: Path) -> None:
     client = build_client(tmp_path)
 
-    response = client.post(
-        "/api/v1/policies/ask",
-        headers=FINANCE,
-        json={"question": FINANCE_QUESTION, "on_date": "2026-08-18"},
-    )
+    for headers in (FINANCE, AUDITOR):
+        response = client.post(
+            "/api/v1/policies/ask",
+            headers=headers,
+            json={"question": FINANCE_QUESTION, "on_date": "2026-08-18"},
+        )
 
-    assert response.status_code == 200, response.text
+        assert response.status_code == 200, response.text
 
 
 def test_policy_question_returns_ranked_sections_and_is_audited(tmp_path: Path) -> None:
@@ -339,3 +341,77 @@ def test_endpoint_still_answers_sections_when_the_model_fails(tmp_path: Path) ->
     body = response.json()
     assert body["answer"] is None
     assert body["sections"][0]["section_id"] == "4.2"
+
+
+def test_turkish_dotted_capital_i_keeps_tokens_whole() -> None:
+    assert _tokenize("İstisna süreci") == _tokenize("istisna süreci") == ["istisna", "süreci"]
+    assert _tokenize("Genel Kontrol İlkeleri") == ["genel", "kontrol", "ilkeleri"]
+
+
+def test_capitalized_turkish_question_ranks_like_its_lowercase_form() -> None:
+    service = build_service()
+
+    capitalized = service.ask("İstisna süreci", on_date=ON_DATE, role="procurement_specialist")
+    lowercase = service.ask("istisna süreci", on_date=ON_DATE, role="procurement_specialist")
+
+    assert capitalized["sections"] == lowercase["sections"]
+    assert capitalized["sections"][0]["section_id"] == "4.3"
+
+
+def test_lowercase_question_matches_a_capitalized_section_heading() -> None:
+    result = build_service().ask(
+        "ilkeleri nelerdir", on_date=ON_DATE, role="procurement_specialist"
+    )
+
+    assert result["sections"][0]["section_id"] == "4.1"
+
+
+def test_injected_question_is_audited_as_data(tmp_path: Path) -> None:
+    client = build_client(tmp_path)
+
+    response = client.post(
+        "/api/v1/policies/ask",
+        headers=PROCUREMENT,
+        json={"question": INJECTION_QUESTION, "on_date": "2026-08-18"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["sections"] == []
+    asked = [
+        event
+        for event in client.get("/api/v1/audit/events", headers=AUDIT).json()
+        if event["event_type"] == "POLICY_QA"
+    ]
+    assert asked[0]["details"]["injection_rule_id"] == "INSTRUCTION_OVERRIDE_TR"
+
+
+def test_failed_retrieval_is_audited(tmp_path: Path) -> None:
+    client = build_client(tmp_path)
+
+    response = client.post(
+        "/api/v1/policies/ask",
+        headers=PROCUREMENT,
+        json={"question": FINANCE_QUESTION, "on_date": "2025-06-01"},
+    )
+
+    assert response.status_code == 422
+    failed = [
+        event
+        for event in client.get("/api/v1/audit/events", headers=AUDIT).json()
+        if event["event_type"] == "POLICY_QA_FAILED"
+    ]
+    assert len(failed) == 1
+    assert failed[0]["details"]["code"] == "APPLICABLE_POLICY_NOT_FOUND"
+    assert failed[0]["trace_id"] == response.json()["error"]["trace_id"]
+
+
+def test_untrusted_attachment_is_a_real_candidate_shape_behind_the_trust_filter() -> None:
+    repository = PolicyRepository(ROOT / "data" / "documents.json")
+    entry = next(
+        item for item in repository._entries if item["document_id"] == UNTRUSTED_DOCUMENT_ID
+    )
+
+    document = repository._load_document(entry)
+
+    assert [section.section_id for section in document.sections] == ["1.0"]
+    assert "yok say" in document.sections[0].body

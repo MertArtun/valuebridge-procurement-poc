@@ -182,3 +182,14 @@ def test_policy_question_card_posts_the_form_date_and_renders_text_only(tmp_path
     assert "showBanner('#qa-answer', body.answer)" in handler
     assert "hideBanner('#qa-answer')" in handler
     assert "body.retrieval_mode" in handler
+
+
+def test_intake_clears_fields_the_assistant_could_not_extract(tmp_path: Path) -> None:
+    script = _client(tmp_path).get("/static/app.js").text
+    apply_draft = script.split("function applyDraft(", 1)[1].split("\n}", 1)[0]
+    handler = script.split("intakeButton.addEventListener", 1)[1].split("\n});", 1)[0]
+
+    assert "if (value === null) return;" not in apply_draft
+    assert "field.value = value === null ? '' : String(value);" in apply_draft
+    assert "clearAnalysisResult();" in handler
+    assert "statusBadge.textContent = 'ANALİZE HAZIR';" in handler

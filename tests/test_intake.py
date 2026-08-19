@@ -121,6 +121,10 @@ def test_intake_reports_a_disabled_assistant_when_no_client_is_configured(tmp_pa
 
     assert response.status_code == 503
     assert response.json()["error"]["code"] == "LLM_DISABLED"
+    failed = audit_events(client, "INTAKE_FAILED")
+    assert len(failed) == 1
+    assert failed[0]["details"]["code"] == "LLM_DISABLED"
+    assert failed[0]["trace_id"] == response.json()["error"]["trace_id"]
 
 
 def test_unparseable_completion_fails_loudly_and_is_audited(tmp_path: Path) -> None:

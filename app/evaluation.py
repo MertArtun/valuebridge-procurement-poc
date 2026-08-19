@@ -27,8 +27,6 @@ from app.retrieval import PolicyRepository
 from app.security import AuthorizationError, authorize, contains_prompt_injection
 from mockdesk.store import MockDeskStore
 
-_UNTRUSTED_DOCUMENT_ID = "ATLAS-ATTACH-2026-08"
-
 _NEUTRAL_ANALYSIS = PurchaseAnalysis(
     historical_median_try=Decimal("0"),
     variance_percent=Decimal("0"),
@@ -239,20 +237,33 @@ class _CaseRunner:
             role=role,
         )
         sections = result["sections"]
-        statuses = {
-            document.document_id: document.status
-            for document in repository.searchable_documents(role)
-        }
+        searchable = repository.searchable_documents(role)
+        statuses = {document.document_id: document.status for document in searchable}
+        untrusted = self._untrusted_document_ids()
         actual = {
             "top_document_id": sections[0]["document_id"] if sections else None,
             "superseded_retrieved": any(
                 statuses.get(section["document_id"]) != "CURRENT" for section in sections
             ),
-            "untrusted_retrieved": any(
-                section["document_id"] == _UNTRUSTED_DOCUMENT_ID for section in sections
+            # An untrusted document that merely became searchable already broke
+            # the boundary, whether or not this question happened to rank it.
+            "untrusted_retrieved": bool(
+                untrusted
+                & (
+                    {section["document_id"] for section in sections}
+                    | {document.document_id for document in searchable}
+                )
             ),
         }
         return dict(case["expected"]), actual
+
+    def _untrusted_document_ids(self) -> set[str]:
+        entries = json.loads(self._documents_path.read_text(encoding="utf-8"))
+        return {
+            str(entry["document_id"])
+            for entry in entries
+            if not entry.get("trusted_for_retrieval", False)
+        }
 
     def _policy_documents(self) -> PolicyRepository:
         if self._repository is None:
