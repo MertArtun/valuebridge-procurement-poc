@@ -1,0 +1,35 @@
+# Public demo overlay for the Hetzner host.
+#   docker compose -p valuebridge -f docker-compose.yml -f docker-compose.demo.yml up -d
+# Relative paths resolve against this file's directory (~/valuebridge/app),
+# so ../ points at the host layout that holds the env file and the index.
+services:
+  mockdesk:
+    restart: unless-stopped
+
+  valuebridge:
+    restart: unless-stopped
+    env_file:
+      - ../.env
+    environment:
+      VALUEBRIDGE_DEMO_MODE: "1"
+    volumes:
+      - valuebridge-runtime:/app/runtime
+      - ../policy_embeddings.json:/app/data/policy_embeddings.json:ro
+    # Replaces the base 8000:8000 publish; outside traffic must arrive through
+    # Caddy, which is what makes the X-Forwarded-For rate limit key trustworthy.
+    ports: !override
+      - "127.0.0.1:8090:8000"
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      # Issued certificates live outside the compose volumes: the nightly reset
+      # runs `down -v`, and re-issuing daily would burn the Let's Encrypt quota.
+      - ../caddy-data:/data
+    depends_on:
+      - valuebridge

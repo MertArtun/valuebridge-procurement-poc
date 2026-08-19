@@ -22,3 +22,9 @@ def keyless_llm_environment(monkeypatch: pytest.MonkeyPatch) -> None:
     """Run every test against the keyless default, whatever the shell exports."""
     for name in LLM_ENVIRONMENT_VARIABLES:
         monkeypatch.delenv(name, raising=False)
+
+
+@pytest.fixture(autouse=True)
+def demo_mode_disabled(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep the hardened demo profile opt-in, whatever the shell exports."""
+    monkeypatch.delenv("VALUEBRIDGE_DEMO_MODE", raising=False)

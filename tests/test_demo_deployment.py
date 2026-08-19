@@ -1,0 +1,60 @@
+from pathlib import Path
+
+import yaml
+
+
+class ComposeLoader(yaml.SafeLoader):
+    """Compose's !override merge tag is not part of plain YAML."""
+
+
+ComposeLoader.add_constructor("!override", lambda loader, node: loader.construct_sequence(node))
+
+
+def load_demo_service() -> dict:
+    overlay = yaml.load(
+        Path("docker-compose.demo.yml").read_text(encoding="utf-8"), Loader=ComposeLoader
+    )
+    return overlay["services"]
+
+
+def test_demo_overlay_publishes_the_application_on_loopback_only() -> None:
+    base = yaml.safe_load(Path("docker-compose.yml").read_text(encoding="utf-8"))
+    assert base["services"]["valuebridge"]["ports"] == ["8000:8000"]
+
+    ports = load_demo_service()["valuebridge"]["ports"]
+
+    assert ports == ["127.0.0.1:8090:8000"]
+
+
+def test_demo_overlay_turns_on_demo_mode_with_the_host_env_file() -> None:
+    valuebridge = load_demo_service()["valuebridge"]
+
+    assert valuebridge["environment"]["VALUEBRIDGE_DEMO_MODE"] == "1"
+    assert valuebridge["env_file"] == ["../.env"]
+
+
+def test_demo_overlay_keeps_the_runtime_volume_and_mounts_the_policy_index() -> None:
+    volumes = load_demo_service()["valuebridge"]["volumes"]
+
+    assert "valuebridge-runtime:/app/runtime" in volumes
+    assert "../policy_embeddings.json:/app/data/policy_embeddings.json:ro" in volumes
+
+
+def test_caddy_terminates_tls_for_the_demo_hostname() -> None:
+    caddy = load_demo_service()["caddy"]
+    caddyfile = Path("deploy/Caddyfile").read_text(encoding="utf-8")
+
+    assert caddy["ports"] == ["80:80", "443:443"]
+    assert "./deploy/Caddyfile:/etc/caddy/Caddyfile:ro" in caddy["volumes"]
+    assert "valuebridge.62-238-40-66.sslip.io" in caddyfile
+    assert "reverse_proxy valuebridge:8000" in caddyfile
+
+
+def test_certificate_storage_survives_the_nightly_volume_reset() -> None:
+    reset = Path("deploy/valuebridge-demo-reset.service").read_text(encoding="utf-8")
+    assert "down -v" in reset
+
+    volumes = load_demo_service()["caddy"]["volumes"]
+    caddy_data = [volume for volume in volumes if ":/data" in volume]
+
+    assert caddy_data == ["../caddy-data:/data"]

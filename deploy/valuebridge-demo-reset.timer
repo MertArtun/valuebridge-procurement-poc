@@ -1,0 +1,10 @@
+[Unit]
+Description=Nightly reset of the ValueBridge demo
+
+[Timer]
+OnCalendar=*-*-* 03:00:00 Europe/Istanbul
+Persistent=false
+Unit=valuebridge-demo-reset.service
+
+[Install]
+WantedBy=timers.target

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import os
+import time
+from collections.abc import Callable
 from pathlib import Path
 
 from fastapi import FastAPI, Header, HTTPException
@@ -25,6 +27,7 @@ from app.models import (
     TicketResult,
 )
 from app.policy_qa import embedding_client_from_env
+from app.rate_limit import TokenBucketLimiter
 from app.security import authorize
 from app.service import ProcurementService
 from app.store import SQLiteStore
@@ -34,6 +37,9 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 # FastAPI's bundled docs UI loads its assets from a CDN plus one inline
 # bootstrap script, which the strict CSP would block into a blank page.
 _DOCS_PATHS = {"/docs", "/redoc", "/openapi.json"}
+
+_DEMO_RATE_LIMIT_CAPACITY = 30
+_DEMO_RATE_LIMIT_PER_MINUTE = 30
 
 
 def _default_service() -> ProcurementService:
@@ -50,7 +56,14 @@ def _default_service() -> ProcurementService:
     )
 
 
-def create_app(service: ProcurementService | None = None) -> FastAPI:
+def create_app(
+    service: ProcurementService | None = None,
+    *,
+    demo_mode: bool | None = None,
+    clock: Callable[[], float] = time.monotonic,
+) -> FastAPI:
+    if demo_mode is None:
+        demo_mode = os.getenv("VALUEBRIDGE_DEMO_MODE") == "1"
     app = FastAPI(
         title="ValueBridge Procurement PoC",
         version="0.2.0",
@@ -65,6 +78,31 @@ def create_app(service: ProcurementService | None = None) -> FastAPI:
             app.state.service = _default_service()
         return app.state.service
 
+    if demo_mode:
+        limiter = TokenBucketLimiter(
+            capacity=_DEMO_RATE_LIMIT_CAPACITY,
+            refill_per_minute=_DEMO_RATE_LIMIT_PER_MINUTE,
+            clock=clock,
+        )
+
+        # Registered before the header middleware so that it stays the inner
+        # layer: a throttled response still carries the demo headers.
+        @app.middleware("http")
+        async def demo_rate_limit(request: Request, call_next):
+            if not request.url.path.startswith("/api/"):
+                return await call_next(request)
+            retry_after = limiter.consume(_client_key(request))
+            if retry_after is None:
+                return await call_next(request)
+            response = _json_error(
+                429,
+                "RATE_LIMITED",
+                "Demo rate limit reached. Please retry shortly.",
+                retryable=True,
+            )
+            response.headers["Retry-After"] = str(retry_after)
+            return response
+
     @app.middleware("http")
     async def security_headers(request: Request, call_next):
         response = await call_next(request)
@@ -77,6 +115,8 @@ def create_app(service: ProcurementService | None = None) -> FastAPI:
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["Referrer-Policy"] = "no-referrer"
         response.headers["X-Frame-Options"] = "DENY"
+        if demo_mode:
+            response.headers["X-Robots-Tag"] = "noindex, nofollow"
         return response
 
     @app.exception_handler(ValueBridgeError)
@@ -208,6 +248,20 @@ def create_app(service: ProcurementService | None = None) -> FastAPI:
         return summarize(resolve_service().store.list_audit())
 
     return app
+
+
+def _client_key(request: Request) -> str:
+    """Identify the caller behind the demo reverse proxy.
+
+    The demo container publishes its port on loopback only, so every external
+    call arrives through Caddy and the first X-Forwarded-For entry is the one
+    Caddy appended for the real client.
+    """
+    forwarded = request.headers.get("X-Forwarded-For", "")
+    first = forwarded.split(",")[0].strip()
+    if first:
+        return first
+    return request.client.host if request.client else "unknown"
 
 
 def _json_error(

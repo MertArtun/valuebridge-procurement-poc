@@ -1,0 +1,9 @@
+[Unit]
+Description=Reset the ValueBridge demo to a fresh database
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/valuebridge/app
+ExecStart=/usr/bin/docker compose -p valuebridge -f docker-compose.yml -f docker-compose.demo.yml down -v
+ExecStart=/usr/bin/docker compose -p valuebridge -f docker-compose.yml -f docker-compose.demo.yml up -d
+TimeoutStartSec=0
