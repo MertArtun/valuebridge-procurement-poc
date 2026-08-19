@@ -1,8 +1,8 @@
 """Deterministic evaluation runner for the frozen cases in ``evals/``.
 
 Expected outcomes are derived here from ``evals/policy_oracle.yaml``, never from
-the values the application components return. Security cases are not
-parameterized by the oracle file, so their frozen ``expected`` block is the
+the values the application components return. Security and retrieval cases are
+not parameterized by the oracle file, so their frozen ``expected`` block is the
 oracle for those cases. A case whose frozen ``expected`` block contradicts the
 oracle fails as dataset drift, so corrupted cases can never report ``PASSED``.
 """
@@ -22,8 +22,12 @@ import yaml
 
 from app.models import PurchaseAnalysis, PurchaseRequest, SupplierRecord
 from app.policy_engine import PolicyEngine
+from app.policy_qa import PolicyQaService
+from app.retrieval import PolicyRepository
 from app.security import AuthorizationError, authorize, contains_prompt_injection
 from mockdesk.store import MockDeskStore
+
+_UNTRUSTED_DOCUMENT_ID = "ATLAS-ATTACH-2026-08"
 
 _NEUTRAL_ANALYSIS = PurchaseAnalysis(
     historical_median_try=Decimal("0"),
@@ -54,6 +58,7 @@ def run_evaluation(
             oracle=yaml.safe_load(oracle_path.read_text(encoding="utf-8")),
             engine=PolicyEngine.from_yaml(policy_rules_path),
             workspace=Path(directory),
+            documents_path=policy_rules_path.parent / "documents.json",
         )
         results = [runner.run(case) for case in cases]
 
@@ -75,10 +80,19 @@ def write_report(report: dict[str, Any], path: Path) -> None:
 
 
 class _CaseRunner:
-    def __init__(self, *, oracle: dict[str, Any], engine: PolicyEngine, workspace: Path) -> None:
+    def __init__(
+        self,
+        *,
+        oracle: dict[str, Any],
+        engine: PolicyEngine,
+        workspace: Path,
+        documents_path: Path,
+    ) -> None:
         self._oracle = oracle
         self._engine = engine
         self._tickets = MockDeskStore(workspace / "mockdesk.db")
+        self._documents_path = documents_path
+        self._repository: PolicyRepository | None = None
         self._seen_keys: set[str] = set()
         self._expected_ticket_count = 0
 
@@ -124,6 +138,8 @@ class _CaseRunner:
             return self._security_case(case)
         if family == "IDEM":
             return self._idempotency_case(case)
+        if family == "RAG":
+            return self._retrieval_case(case)
         raise ValueError(f"Unsupported case family {family!r}")
 
     def _policy_case(self, case: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
@@ -212,6 +228,36 @@ class _CaseRunner:
         else:
             actual = {"authorized": _is_authorized(data["role"], data["action"])}
         return dict(case["expected"]), actual
+
+    def _retrieval_case(self, case: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
+        data = case["input"]
+        role = str(data["role"])
+        repository = self._policy_documents()
+        result = PolicyQaService(repository).ask(
+            str(data["question"]),
+            on_date=date.fromisoformat(data["on_date"]),
+            role=role,
+        )
+        sections = result["sections"]
+        statuses = {
+            document.document_id: document.status
+            for document in repository.searchable_documents(role)
+        }
+        actual = {
+            "top_document_id": sections[0]["document_id"] if sections else None,
+            "superseded_retrieved": any(
+                statuses.get(section["document_id"]) != "CURRENT" for section in sections
+            ),
+            "untrusted_retrieved": any(
+                section["document_id"] == _UNTRUSTED_DOCUMENT_ID for section in sections
+            ),
+        }
+        return dict(case["expected"]), actual
+
+    def _policy_documents(self) -> PolicyRepository:
+        if self._repository is None:
+            self._repository = PolicyRepository(self._documents_path)
+        return self._repository
 
     def _idempotency_case(self, case: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
         key = str(case["input"]["key"])

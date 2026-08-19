@@ -19,9 +19,12 @@ from app.models import (
     ApprovalRecord,
     IntakeRequest,
     IntakeResponse,
+    PolicyQaResponse,
+    PolicyQuestion,
     PurchaseRequest,
     TicketResult,
 )
+from app.policy_qa import embedding_client_from_env
 from app.security import authorize
 from app.service import ProcurementService
 from app.store import SQLiteStore
@@ -43,6 +46,7 @@ def _default_service() -> ProcurementService:
         mockdesk_gateway=gateway,
         project_root=PROJECT_ROOT,
         chat_client=chat_client_from_env(),
+        embedding_client=embedding_client_from_env(),
     )
 
 
@@ -123,6 +127,19 @@ def create_app(service: ProcurementService | None = None) -> FastAPI:
     ) -> IntakeResponse:
         return resolve_service().draft_intake(
             payload.text,
+            role=x_demo_role,
+            user=x_demo_user,
+        )
+
+    @app.post("/api/v1/policies/ask", response_model=PolicyQaResponse)
+    def ask_policy_question(
+        payload: PolicyQuestion,
+        x_demo_role: str = Header(alias="X-Demo-Role"),
+        x_demo_user: str = Header(alias="X-Demo-User"),
+    ) -> PolicyQaResponse:
+        return resolve_service().ask_policy_question(
+            payload.question,
+            payload.on_date,
             role=x_demo_role,
             user=x_demo_user,
         )

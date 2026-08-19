@@ -46,6 +46,11 @@ def test_home_ships_a_region_for_every_workflow_state(tmp_path: Path) -> None:
         "duplicate-notice",
         "action-error",
         "audit-events",
+        "qa-input",
+        "qa-button",
+        "qa-results",
+        "qa-answer",
+        "qa-mode",
     ):
         assert f'id="{element_id}"' in html, element_id
 
@@ -63,7 +68,7 @@ def test_state_regions_are_announced_and_hidden_until_used(tmp_path: Path) -> No
     html = _client(tmp_path).get("/").text
 
     banners = [line for line in html.splitlines() if 'class="state-banner' in line]
-    assert len(banners) == 9, banners
+    assert len(banners) == 10, banners
     for line in banners:
         assert 'role="status"' in line or 'role="alert"' in line, line
         assert "hidden" in line, line
@@ -160,3 +165,20 @@ def test_stylesheet_ships_keyboard_focus_styles(tmp_path: Path) -> None:
 
     assert ":focus-visible" in stylesheet
     assert ".state-banner" in stylesheet
+
+
+def test_policy_question_card_posts_the_form_date_and_renders_text_only(tmp_path: Path) -> None:
+    script = _client(tmp_path).get("/static/app.js").text
+    html = _client(tmp_path).get("/").text
+    handler = script.split("qaButton.addEventListener", 1)[1].split("\n});", 1)[0]
+
+    assert "Politika Soru-Cevap" in html
+    assert "Politikaya Sor" in html
+    assert 'id="qa-answer-text"' in html
+    assert "/api/v1/policies/ask" in handler
+    assert "headers('procurement_specialist', 'procurement_user')" in handler
+    assert "form.elements.namedItem('request_date')" in handler
+    assert "'2026-08-18'" in handler
+    assert "showBanner('#qa-answer', body.answer)" in handler
+    assert "hideBanner('#qa-answer')" in handler
+    assert "body.retrieval_mode" in handler

@@ -10,3 +10,4 @@ runtime/*.db
 .env
 .DS_Store
 reports/*.json
+data/policy_embeddings.json

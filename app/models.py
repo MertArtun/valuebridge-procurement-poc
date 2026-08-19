@@ -63,6 +63,11 @@ class IntakeRequest(ApiModel):
     text: str = Field(min_length=1, max_length=2000)
 
 
+class PolicyQuestion(ApiModel):
+    question: str = Field(min_length=3, max_length=300)
+    on_date: date
+
+
 class SupplierRecord(ApiModel):
     supplier_name: str
     quality_score: int = Field(ge=0, le=100)
@@ -165,6 +170,25 @@ class IntakeResponse(ApiModel):
     draft: PurchaseRequestDraft
     missing_fields: list[str]
     injection_rule_id: str | None = None
+    trace_id: str
+
+
+class PolicyQaSection(ApiModel):
+    document_id: str
+    version: str
+    title: str
+    section_id: str
+    section_title: str
+    score: float
+    snippet: str
+
+
+class PolicyQaResponse(ApiModel):
+    question: str
+    on_date: date
+    retrieval_mode: Literal["lexical", "hybrid"]
+    sections: list[PolicyQaSection]
+    answer: str | None = None
     trace_id: str
 
 

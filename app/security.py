@@ -11,6 +11,12 @@ _ACTION_ROLES: dict[str, set[str]] = {
     "execute_tool_action": {"procurement_specialist", "solution_engineer"},
     "read_audit": {"auditor", "solution_engineer", "finance_approver"},
     "draft_intake_request": {"procurement_specialist", "solution_engineer"},
+    "ask_policy_question": {
+        "procurement_specialist",
+        "finance_approver",
+        "auditor",
+        "solution_engineer",
+    },
 }
 
 _INJECTION_RULES: dict[str, re.Pattern[str]] = {

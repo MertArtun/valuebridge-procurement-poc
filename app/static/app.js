@@ -9,6 +9,8 @@ const auditButton = document.querySelector('#audit-button');
 const intakeButton = document.querySelector('#intake-button');
 const intakeText = document.querySelector('#intake-text');
 const approvalStatus = document.querySelector('#approval-status');
+const qaButton = document.querySelector('#qa-button');
+const qaInput = document.querySelector('#qa-input');
 let approvalId = null;
 let analysisTraceId = null;
 
@@ -324,6 +326,51 @@ executeButton.addEventListener('click', async () => {
     showBanner('#execution-success', `Kayıt ${body.ticket_id} · durum ${body.status}.`);
   }
   await refreshAudit();
+});
+
+qaButton.addEventListener('click', async () => {
+  hideBanner('#qa-answer');
+  const container = document.querySelector('#qa-results');
+  const requestDate = form.elements.namedItem('request_date');
+  const onDate = (requestDate && requestDate.value) || '2026-08-18';
+  let response;
+  let body;
+  try {
+    response = await fetch('/api/v1/policies/ask', {
+      method: 'POST',
+      headers: headers('procurement_specialist', 'procurement_user'),
+      body: JSON.stringify({ question: qaInput.value, on_date: onDate }),
+    });
+    body = await response.json();
+  } catch (networkError) {
+    document.querySelector('#qa-mode').textContent = '';
+    container.replaceChildren(createElement('p', { text: `Sunucuya ulaşılamadı: ${networkError.message}` }));
+    return;
+  }
+  if (!response.ok) {
+    document.querySelector('#qa-mode').textContent = '';
+    container.replaceChildren(createElement('p', { text: errorMessage(body) }));
+    return;
+  }
+
+  document.querySelector('#qa-mode').textContent = `Getirme modu: ${body.retrieval_mode} · ${onDate} tarihinde yürürlükteki politikalar`;
+  const sections = body.sections.map((section) => {
+    const article = createElement('article', { className: 'citation' });
+    article.append(
+      createElement('strong', { text: `${section.title} v${section.version}` }),
+      createElement('span', { text: `Bölüm ${section.section_id} — ${section.section_title}` }),
+      createElement('small', { text: section.snippet }),
+    );
+    return article;
+  });
+  container.replaceChildren(
+    ...(sections.length ? sections : [createElement('p', { text: 'Eşleşen politika bölümü bulunamadı.' })]),
+  );
+  if (typeof body.answer === 'string' && body.answer.trim()) {
+    showBanner('#qa-answer', body.answer);
+  } else {
+    hideBanner('#qa-answer');
+  }
 });
 
 auditButton.addEventListener('click', refreshAudit);

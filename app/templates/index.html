@@ -108,7 +108,17 @@
     </section>
 
     <section class="card">
-      <div class="section-heading"><div><p class="step">05</p><h2>Audit Trail</h2></div><button id="audit-button" type="button">Audit'i Yenile</button></div>
+      <div class="section-heading"><div><p class="step">05</p><h2>Politika Soru-Cevap</h2></div></div>
+      <p class="hint">Soru yalnızca yürürlükteki ve rolünüze açık politika bölümlerinde aranır; yürürlükten kalkmış sürümler ve tedarikçi ekleri aramaya hiç girmez.</p>
+      <input id="qa-input" maxlength="300" placeholder="Örn: Finans yöneticisi onayı hangi tutarın üzerinde gerekir?">
+      <div class="button-row"><button id="qa-button" type="button">Politikaya Sor</button></div>
+      <small class="hint" id="qa-mode"></small>
+      <div id="qa-results"></div>
+      <div class="state-banner state-info hidden" id="qa-answer" role="status" aria-live="polite"><strong>Yapay Zekâ Cevabı</strong> <span id="qa-answer-text"></span></div>
+    </section>
+
+    <section class="card">
+      <div class="section-heading"><div><p class="step">06</p><h2>Audit Trail</h2></div><button id="audit-button" type="button">Audit'i Yenile</button></div>
       <p class="hint">Her olayı klavye veya fare ile açarak trace ID'sini ve ayrıntı JSON'unu görebilirsiniz.</p>
       <div id="audit-events" class="audit-list"><p>Henüz olay yok.</p></div>
     </section>

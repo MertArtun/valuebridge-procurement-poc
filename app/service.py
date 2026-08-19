@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from datetime import date
 from pathlib import Path
 from uuid import uuid4
 
@@ -30,12 +31,14 @@ from app.models import (
     IntakeResponse,
     PolicyDecision,
     PolicyDocument,
+    PolicyQaResponse,
     PurchaseRequest,
     PurchaseRequestDraft,
     TicketResult,
 )
 from app.narrator import explain_decision
 from app.policy_engine import PolicyEngine
+from app.policy_qa import EmbeddingClient, PolicyQaService
 from app.retrieval import PolicyRepository
 from app.security import authorize, matched_injection_rule
 from app.store import SQLiteStore
@@ -88,6 +91,8 @@ class ProcurementService:
         suppliers_path: Path,
         purchase_history_path: Path,
         chat_client: ChatClient | None = None,
+        embedding_client: EmbeddingClient | None = None,
+        embeddings_path: Path | None = None,
     ) -> None:
         self.store = store
         self.mockdesk_gateway = mockdesk_gateway
@@ -96,6 +101,12 @@ class ProcurementService:
         self.suppliers_path = suppliers_path
         self.purchase_history_path = purchase_history_path
         self.chat_client = chat_client
+        self.policy_qa = PolicyQaService(
+            policy_repository,
+            chat_client=chat_client,
+            embedding_client=embedding_client,
+            embeddings_path=embeddings_path,
+        )
 
     @classmethod
     def from_project_data(
@@ -105,6 +116,7 @@ class ProcurementService:
         mockdesk_gateway: MockDeskGateway,
         project_root: Path,
         chat_client: ChatClient | None = None,
+        embedding_client: EmbeddingClient | None = None,
     ) -> ProcurementService:
         return cls(
             store=store,
@@ -114,6 +126,8 @@ class ProcurementService:
             suppliers_path=project_root / "data" / "suppliers.csv",
             purchase_history_path=project_root / "data" / "purchase_history.csv",
             chat_client=chat_client,
+            embedding_client=embedding_client,
+            embeddings_path=project_root / "data" / "policy_embeddings.json",
         )
 
     def analyze(self, request: PurchaseRequest, *, role: str, user: str) -> AnalysisResponse:
@@ -286,6 +300,51 @@ class ProcurementService:
             draft=draft,
             missing_fields=[name for name in _INTAKE_FIELDS if name not in present],
             injection_rule_id=injection_rule_id,
+            trace_id=trace_id,
+        )
+
+    def ask_policy_question(
+        self,
+        question: str,
+        on_date: date,
+        *,
+        role: str,
+        user: str,
+    ) -> PolicyQaResponse:
+        trace_id = f"trace-{uuid4().hex[:12]}"
+        try:
+            authorize(role, "ask_policy_question")
+        except AuthorizationError as exc:
+            exc.attach_trace(trace_id)
+            self.store.add_audit(
+                event_type="AUTHORIZATION_DENIED",
+                actor=user[:64],
+                trace_id=trace_id,
+                details={"role": role[:64], "action": "ask_policy_question"},
+            )
+            raise
+        try:
+            result = self.policy_qa.ask(question, on_date=on_date, role=role)
+        except ValueBridgeError as exc:
+            exc.attach_trace(trace_id)
+            raise
+        sections = result["sections"]
+        self.store.add_audit(
+            event_type="POLICY_QA",
+            actor=user,
+            trace_id=trace_id,
+            details={
+                "question": question[:120],
+                "retrieval_mode": result["retrieval_mode"],
+                "section_ids": [section["section_id"] for section in sections],
+            },
+        )
+        return PolicyQaResponse(
+            question=question,
+            on_date=on_date,
+            retrieval_mode=result["retrieval_mode"],
+            sections=sections,
+            answer=result["answer"],
             trace_id=trace_id,
         )
 
