@@ -72,3 +72,22 @@ def test_the_image_carries_the_build_sha_it_was_built_with() -> None:
 
     assert "ARG BUILD_SHA=dev" in dockerfile
     assert "ENV VALUEBRIDGE_BUILD_SHA=$BUILD_SHA" in dockerfile
+
+
+def test_each_service_owns_its_runtime_volume() -> None:
+    base = yaml.safe_load(Path("docker-compose.yml").read_text(encoding="utf-8"))
+
+    assert base["services"]["mockdesk"]["volumes"] == ["mockdesk-runtime:/app/runtime"]
+    assert base["services"]["valuebridge"]["volumes"] == ["valuebridge-runtime:/app/runtime"]
+    assert set(base["volumes"]) == {"mockdesk-runtime", "valuebridge-runtime"}
+
+
+def test_the_demo_overlay_does_not_recouple_the_runtime_volumes() -> None:
+    overlay = load_demo_service()
+
+    assert "volumes" not in overlay["mockdesk"]
+    assert not [
+        volume
+        for volume in overlay["valuebridge"]["volumes"]
+        if volume.startswith("mockdesk-runtime")
+    ]
