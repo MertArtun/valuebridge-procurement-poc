@@ -102,7 +102,7 @@ The `.mmd` sources live in [`docs/diagrams/`](docs/diagrams).
 
 ## Verified system behavior
 
-202 tests, 9 project invariants (`scripts/verify.py`) and 15 frozen evaluation cases (`scripts/run_evals.py`) cover:
+211 tests, 9 project invariants (`scripts/verify.py`) and 15 frozen evaluation cases (`scripts/run_evals.py`) cover:
 
 **Decision core**
 

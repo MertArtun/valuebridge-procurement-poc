@@ -6,7 +6,7 @@
 |---|---|---|
 | Lint | `ruff check .` | Clean |
 | Browser script syntax | `node --check app/static/app.js` | Clean |
-| Test suite | `pytest -q` | 202 passed |
+| Test suite | `pytest -q` | 211 passed |
 | Project invariants | `python scripts/verify.py` | 9 checks passed |
 | Frozen evaluations | `python scripts/run_evals.py` | 15 cases passed, 0 failed |
 
