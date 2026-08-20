@@ -107,7 +107,7 @@ bash scripts/demo.sh
 docker compose down -v
 ```
 
-The suite currently reports 211 passing tests, `scripts/verify.py` 9 project invariants and `scripts/run_evals.py` 15 passing cases. Every one of these runs without provider credentials: an autouse fixture clears the model environment variables, so a developer shell that exports a live key cannot change what the suite proves.
+The suite currently reports 242 passing tests, `scripts/verify.py` 9 project invariants and `scripts/run_evals.py` 15 passing cases. Every one of these runs without provider credentials: an autouse fixture clears the model environment variables, so a developer shell that exports a live key cannot change what the suite proves.
 
 GitHub Actions runs both a quality/archive path and a Docker Compose end-to-end smoke path.
 
@@ -132,5 +132,6 @@ injection-follow at the extraction layer that Haiku fully resisted. The
 downstream design already contains this failure (the draft only fills a
 human-reviewed form and the deterministic decision layer never reads free text),
 but the benchmark is what made the difference between the two models visible
-before a model choice was locked in. Numbers are point-in-time; re-run the
-script rather than quoting this table as current.
+before a model choice was locked in. On the strength of that injection
+resistance finding the hosted demo pins `anthropic/claude-haiku-4.5`. Numbers
+are point-in-time; re-run the script rather than quoting this table as current.

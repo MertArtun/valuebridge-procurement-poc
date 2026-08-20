@@ -20,13 +20,13 @@ An AI-assisted procurement exception workflow — a bounded, production-minded p
 
 ValueBridge shows how a Solution Engineer can turn an ambiguous operational process into an explainable, controlled and testable AI-assisted workflow. Every decision is deterministic and human-governed; the model layer is optional and only ever narrates, drafts or cites.
 
-## Live demo — a 60-second tour
+## Live demo — a guided tour
 
 **https://valuebridge.62-238-40-66.sslip.io**
 
-The instance is rate-limited and the database resets nightly at 03:00 Istanbul time, so nothing you click there is permanent. Follow the numbered steps below and you will have seen the whole system without reading anything else on this page. [Quick start](#quick-start) brings the same system up locally.
+The instance is rate-limited and the database resets nightly at 03:00 Istanbul time, so nothing you click there is permanent. A notice on the page states the rest: it is a shared environment, so enter synthetic data only — free text and policy questions may reach the model provider, and the audit trail there is readable by every visitor. Follow the numbered steps below and you will have seen the whole system without reading anything else on this page. [Quick start](#quick-start) brings the same system up locally.
 
-1. **Start from free text, and notice who is in control.** In the intake box, under *Hazır örnekler*, click the **Tek teklifli acil alım** chip — it fills in the hero case. Press **Taslak Çıkar**. The model writes a *draft* into the form and lists what is missing. It does not analyze, decide or submit anything. The workflow only moves when you review the form and press **Talebi Analiz Et**.
+1. **Start from free text, and notice who is in control.** In the intake box, under *Hazır örnekler*, click the **Tek teklifli acil alım** chip — it fills in the hero case, carrying the request number and date your visit was assigned, so the drafted form needs no manual edits. Press **Taslak Çıkar**. The model writes a *draft* into the form and lists what is missing. It does not analyze, decide or submit anything. Read the form back against the sentence anyway; that review is the control, and the workflow only moves when you press **Talebi Analiz Et**.
 
 2. **Analyze the hero case.** Atlas Endüstri, 220,000 TRY, 1 quote, 20 days lead time. The result is `CONDITIONAL_REVIEW`, backed by section-level policy citations, with exactly one approval opened for the finance approver.
 
@@ -36,7 +36,7 @@ The instance is rate-limited and the database resets nightly at 03:00 Istanbul t
 
 5. **Probe the thresholds.** They are strict greater-than comparisons: **200,000 TRY** exactly passes without finance approval, **200,001 TRY** requires it. Above **100,000 TRY**, a second quote becomes mandatory — which is why the hero case, with one quote, cannot pass cleanly.
 
-6. **Try to hijack the assistant.** The **Gömülü talimat denemesi** chip fills the intake box with text containing an embedded instruction aimed at the model. Draft it: the embedded instruction is *not* followed. It is treated as data, flagged with an `injection_rule_id`, and recorded in the audit trail.
+6. **Try to hijack the assistant.** The **Gömülü talimat denemesi** chip fills the intake box with text carrying an embedded instruction aimed at the model. Draft it: the known override pattern is matched, so the response comes back with an `injection_rule_id` and the attempt is written to the audit trail. What is claimed here is containment, not immunity — the draft is treated as untrusted whether or not the model went along with the instruction. It can only land in a form a human reviews, and nothing the model writes can start an analysis, grant an approval or execute a write. Compare the drafted amount against the sentence and you are performing exactly the review the design depends on.
 
 7. **Ask the policy corpus two questions.** The **Finans eşiği** chip returns an answer cited to PROC-POL-2026 §4.2, served in `hybrid` retrieval mode. The **Korpus dışı soru** chip asks something the corpus does not cover, and the system says so — abstention rather than a fluent invention.
 
@@ -124,7 +124,7 @@ The `.mmd` sources live in [`docs/diagrams/`](docs/diagrams).
 
 ## Verified system behavior
 
-211 tests, 9 project invariants (`scripts/verify.py`) and 15 frozen evaluation cases (`scripts/run_evals.py`) cover:
+242 tests, 9 project invariants (`scripts/verify.py`) and 15 frozen evaluation cases (`scripts/run_evals.py`) cover:
 
 **Decision core**
 
@@ -164,6 +164,9 @@ The `.mmd` sources live in [`docs/diagrams/`](docs/diagrams).
 - Pilot metrics derived from the audit trail rather than a separate counter
 - Approve and reject controls that stay disabled until the action preview loads
 - Safe DOM rendering without API-controlled `innerHTML`
+- Every demo scenario chip checked against the injection detector, so the guided tour cannot drift from what the system actually flags
+- Approve, reject, execute and audit refresh reporting a failed request instead of leaving the page silently stale
+- Policy questions recorded by length instead of text where the deployment redacts its audit trail
 - Browser security headers and Docker build-context exclusions
 
 These checks validate system behavior, not customer ROI or production impact.
@@ -252,7 +255,7 @@ Everything above works with no credentials, and the full test suite runs keyless
 | Variable | Purpose |
 |---|---|
 | `VALUEBRIDGE_LLM_API_KEY` | Provider key. Unset means the layer stays off. |
-| `VALUEBRIDGE_LLM_MODEL` | Model id, for example `google/gemini-2.5-flash-lite`. |
+| `VALUEBRIDGE_LLM_MODEL` | Model id, for example `anthropic/claude-haiku-4.5`. |
 | `VALUEBRIDGE_LLM_BASE_URL` | Any OpenAI-compatible base URL; defaults to OpenRouter. |
 | `VALUEBRIDGE_EMBEDDINGS_MODEL` | Embedding model for hybrid retrieval. |
 

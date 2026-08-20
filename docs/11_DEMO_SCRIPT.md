@@ -113,6 +113,6 @@ python scripts/verify.py
 python scripts/run_evals.py
 ```
 
-211 tests, 9 project invariants, 15 frozen evaluation cases. Then unset the API key and run it again unchanged.
+242 tests, 9 project invariants, 15 frozen evaluation cases. Then unset the API key and run it again unchanged.
 
 > Bütün bu doğrulama sağlayıcı anahtarı olmadan geçiyor. Model katmanı kapalıyken intake `503 LLM_DISABLED` dönüyor, anlatım ve cevap `null` oluyor, geri kalan her şey aynı kalıyor. Model değişimi tek konfigürasyon satırı, çünkü hiçbir kararın sahibi model değil.

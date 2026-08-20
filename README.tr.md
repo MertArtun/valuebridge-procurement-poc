@@ -20,13 +20,13 @@ Yapay zekâ destekli satın alma istisna iş akışı — sınırları belirli, 
 
 ValueBridge, bir Solution Engineer'ın belirsiz bir operasyonel süreci nasıl açıklanabilir, kontrollü ve test edilebilir bir yapay zekâ destekli iş akışına dönüştürebileceğini gösterir. Her karar deterministiktir ve insan yönetimindedir; model katmanı isteğe bağlıdır ve yalnızca anlatır, taslak yazar veya atıf verir.
 
-## Canlı demo — 60 saniyelik tur
+## Canlı demo — rehberli tur
 
 **https://valuebridge.62-238-40-66.sslip.io**
 
-Ortam hız sınırlıdır ve veritabanı her gece 03:00'te (İstanbul saati) sıfırlanır; orada yaptığınız hiçbir şey kalıcı olmaz. Aşağıdaki numaralı adımları izlerseniz bu sayfanın geri kalanını okumadan sistemin tamamını görmüş olursunuz. [Hızlı başlangıç](#hızlı-başlangıç) aynı sistemi yerelde ayağa kaldırır.
+Ortam hız sınırlıdır ve veritabanı her gece 03:00'te (İstanbul saati) sıfırlanır; orada yaptığınız hiçbir şey kalıcı olmaz. Sayfadaki uyarı gerisini yazar: paylaşımlı bir ortamdır, yalnızca sentetik veri girin — serbest metin ve politika soruları model sağlayıcısına gidebilir ve oradaki audit trail tüm ziyaretçilere açıktır. Aşağıdaki numaralı adımları izlerseniz bu sayfanın geri kalanını okumadan sistemin tamamını görmüş olursunuz. [Hızlı başlangıç](#hızlı-başlangıç) aynı sistemi yerelde ayağa kaldırır.
 
-1. **Serbest metinle başlayın ve kontrolün kimde olduğuna dikkat edin.** Talep kutusunda *Hazır örnekler* altındaki **Tek teklifli acil alım** çipine tıklayın — hero senaryosunu forma doldurur. **Taslak Çıkar** düğmesine basın. Model forma bir *taslak* yazar ve eksik alanları listeler. Hiçbir şeyi analiz etmez, karara bağlamaz, göndermez. Akış ancak siz formu gözden geçirip **Talebi Analiz Et** dediğinizde ilerler.
+1. **Serbest metinle başlayın ve kontrolün kimde olduğuna dikkat edin.** Talep kutusunda *Hazır örnekler* altındaki **Tek teklifli acil alım** çipine tıklayın — hero senaryosunu, ziyaretinize atanan talep numarası ve tarihiyle birlikte forma doldurur; böylece taslak form elle düzeltme istemez. **Taslak Çıkar** düğmesine basın. Model forma bir *taslak* yazar ve eksik alanları listeler. Hiçbir şeyi analiz etmez, karara bağlamaz, göndermez. Yine de formu cümleyle karşılaştırarak okuyun; kontrol tam olarak bu gözden geçirmedir ve akış ancak siz **Talebi Analiz Et** dediğinizde ilerler.
 
 2. **Hero senaryosunu analiz edin.** Atlas Endüstri, 220.000 TL, 1 teklif, 20 gün tedarik süresi. Sonuç `CONDITIONAL_REVIEW`; bölüm düzeyinde politika atıflarına dayanır ve finans onaycısı için tam olarak tek bir onay açar.
 
@@ -36,7 +36,7 @@ Ortam hız sınırlıdır ve veritabanı her gece 03:00'te (İstanbul saati) sı
 
 5. **Eşikleri yoklayın.** Karşılaştırmalar kesin "büyüktür" karşılaştırmalarıdır: **200.000 TL** finans onayı gerekmeden geçer, **200.001 TL** onay gerektirir. **100.000 TL** üzerinde ikinci teklif zorunlu hale gelir — hero senaryosunun tek teklifle temiz geçememesinin sebebi de budur.
 
-6. **Asistanı ele geçirmeyi deneyin.** **Gömülü talimat denemesi** çipi, talep kutusunu modele yönelik gömülü bir talimat içeren metinle doldurur. Taslağı çıkarın: gömülü talimat uygulan*maz*. Veri olarak işlenir, `injection_rule_id` ile işaretlenir ve audit trail'e kaydedilir.
+6. **Asistanı ele geçirmeyi deneyin.** **Gömülü talimat denemesi** çipi, talep kutusunu modele yönelik gömülü bir talimat taşıyan metinle doldurur. Taslağı çıkarın: bilinen geçersiz kılma kalıbı yakalanır, cevap `injection_rule_id` ile döner ve deneme audit trail'e yazılır. Buradaki iddia bağışıklık değil, sınırlamadır — model talimata uysa da uymasa da taslak güvenilmez kabul edilir. Taslak yalnızca insanın gözden geçirdiği bir forma düşebilir; modelin yazdığı hiçbir şey analiz başlatamaz, onay veremez, yazma işlemi yürütemez. Taslaktaki tutarı cümleyle karşılaştırdığınızda tasarımın dayandığı gözden geçirmeyi yapmış olursunuz.
 
 7. **Politika korpusuna iki soru sorun.** **Finans eşiği** çipi, PROC-POL-2026 §4.2'ye atıflı bir cevabı `hybrid` retrieval modunda döner. **Korpus dışı soru** çipi korpusun kapsamadığı bir şeyi sorar ve sistem bunu açıkça söyler — akıcı bir uydurma yerine cevap vermekten kaçınır.
 
@@ -124,7 +124,7 @@ sequenceDiagram
 
 ## Doğrulanmış sistem davranışı
 
-211 test, 9 proje invariant'ı (`scripts/verify.py`) ve 15 donmuş değerlendirme senaryosu (`scripts/run_evals.py`) şunları kapsar:
+242 test, 9 proje invariant'ı (`scripts/verify.py`) ve 15 donmuş değerlendirme senaryosu (`scripts/run_evals.py`) şunları kapsar:
 
 **Karar çekirdeği**
 
@@ -164,6 +164,9 @@ sequenceDiagram
 - Pilot metriklerinin ayrı bir sayaçtan değil, audit trail'den türetilmesi
 - Onay ve ret kontrollerinin, aksiyon önizlemesi yüklenene kadar devre dışı kalması
 - API kontrolündeki `innerHTML` kullanılmadan güvenli DOM render'ı
+- Her demo senaryo çipinin injection detektörüne karşı doğrulanması, böylece rehberli tur sistemin gerçekte işaretlediğinden ayrışamaz
+- Onay, ret, çalıştırma ve audit yenileme akışlarının başarısız isteği sayfayı sessizce eskitmek yerine bildirmesi
+- Dağıtım audit trail'ini maskelediğinde politika sorularının metin yerine uzunlukla kaydedilmesi
 - Tarayıcı güvenlik header'ları ve Docker build context dışlamaları
 
 Bu kontroller sistem davranışını doğrular; müşteri getirisini veya üretim etkisini değil.
@@ -252,7 +255,7 @@ Yukarıdakilerin tamamı hiçbir kimlik bilgisi olmadan çalışır ve test pake
 | Değişken | Amacı |
 |---|---|
 | `VALUEBRIDGE_LLM_API_KEY` | Sağlayıcı anahtarı. Tanımlı değilse katman kapalı kalır. |
-| `VALUEBRIDGE_LLM_MODEL` | Model kimliği, örneğin `google/gemini-2.5-flash-lite`. |
+| `VALUEBRIDGE_LLM_MODEL` | Model kimliği, örneğin `anthropic/claude-haiku-4.5`. |
 | `VALUEBRIDGE_LLM_BASE_URL` | OpenAI uyumlu herhangi bir base URL; varsayılanı OpenRouter. |
 | `VALUEBRIDGE_EMBEDDINGS_MODEL` | Hybrid retrieval için embedding modeli. |
 
