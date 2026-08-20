@@ -11,6 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.requests import Request
 
+from app.data import load_purchase_categories, load_suppliers
 from app.errors import ValueBridgeError
 from app.llm import chat_client_from_env
 from app.metrics import summarize
@@ -147,7 +148,11 @@ def create_app(
                     "amount_try": "220000",
                     "received_quotes": 1,
                     "offered_lead_time_days": 20,
-                }
+                },
+                "suppliers": load_suppliers(PROJECT_ROOT / "data" / "suppliers.csv"),
+                "categories": load_purchase_categories(
+                    PROJECT_ROOT / "data" / "purchase_history.csv"
+                ),
             },
         )
 

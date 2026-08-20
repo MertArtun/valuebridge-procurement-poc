@@ -29,6 +29,10 @@ h1 { font-size: clamp(3.2rem, 9vw, 6.5rem); line-height: .9; letter-spacing: -.0
 .form-grid input { border: 1px solid #cbd4df; border-radius: 10px; padding: 11px 12px; color: #132033; background: #fbfcfe; }
 .form-grid .primary { align-self: end; min-height: 43px; }
 #intake-text { width: 100%; min-height: 96px; margin-bottom: 12px; border: 1px solid #cbd4df; border-radius: 10px; padding: 11px 12px; color: #132033; background: #fbfcfe; resize: vertical; }
+.chips { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 10px 0 12px; }
+.chips-label { color: #718097; font-size: .72rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+.example-chip { border: 1px solid #d7dfea; background: #eef2f7; border-radius: 999px; padding: 6px 12px; font-size: .82rem; color: #40516a; }
+.example-chip:hover { background: #e2e9f3; border-color: #c3cfdf; }
 .metric-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
 .metric { background: #f1f4f8; padding: 16px; border-radius: 12px; display: grid; gap: 5px; }
 .metric span { color: #64758b; font-size: .78rem; }

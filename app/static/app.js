@@ -136,6 +136,15 @@ function applyDraft(draft) {
   });
 }
 
+document.querySelectorAll('.example-chip').forEach((chip) => {
+  chip.addEventListener('click', () => {
+    const field = document.querySelector(chip.dataset.target);
+    if (!field) return;
+    field.value = chip.dataset.example;
+    field.focus();
+  });
+});
+
 intakeButton.addEventListener('click', async () => {
   hideBanner('#intake-notice');
   hideBanner('#intake-error');

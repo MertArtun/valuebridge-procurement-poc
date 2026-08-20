@@ -203,3 +203,109 @@ def test_intake_clears_fields_the_assistant_could_not_extract(tmp_path: Path) ->
     assert "field.value = value === null ? '' : String(value);" in apply_draft
     assert "clearAnalysisResult();" in handler
     assert "statusBadge.textContent = 'ANALİZE HAZIR';" in handler
+
+
+def test_supplier_field_offers_every_known_supplier(tmp_path: Path) -> None:
+    html = _client(tmp_path).get("/").text
+
+    assert 'list="supplier-options"' in html
+    assert 'id="supplier-options"' in html
+    for supplier_name in (
+        "Atlas Endüstri",
+        "Ege Parça",
+        "Mavi Teknik",
+        "Kuzey Makina",
+        "Delta Endüstri",
+        "Nova Rulman",
+        "Bora Otomasyon",
+        "Yıldız Metal",
+        "Vega Hidrolik",
+    ):
+        assert f'<option value="{supplier_name}">' in html, supplier_name
+
+
+def test_suspended_supplier_option_announces_the_rejection_scenario(tmp_path: Path) -> None:
+    html = _client(tmp_path).get("/").text
+
+    assert (
+        '<option value="Vega Hidrolik">askıya alınmış tedarikçi — RED senaryosu</option>' in html
+    )
+    assert '<option value="Ege Parça"></option>' in html
+
+
+def test_category_field_offers_the_categories_found_in_the_history(tmp_path: Path) -> None:
+    html = _client(tmp_path).get("/").text
+
+    assert 'list="category-options"' in html
+    assert 'id="category-options"' in html
+    assert '<option value="OFFICE_SUPPLIES"></option>' in html
+    assert '<option value="SPARE_PARTS"></option>' in html
+
+
+def test_pickers_keep_the_validation_attributes_of_the_free_text_inputs(tmp_path: Path) -> None:
+    html = _client(tmp_path).get("/").text
+
+    assert 'name="supplier_name" value="Atlas Endüstri" maxlength="120"' in html
+    assert 'name="category" value="SPARE_PARTS" maxlength="64" pattern="[A-Z0-9_]+"' in html
+    assert html.count("required></label>") == 7
+
+
+def test_long_placeholder_sentences_are_replaced_by_example_chips(tmp_path: Path) -> None:
+    html = _client(tmp_path).get("/").text
+
+    assert "Örn:" not in html
+    assert 'placeholder="Talebi kendi cümlelerinizle yazın…"' in html
+    assert 'placeholder="Politika sorunuzu yazın…"' in html
+
+
+def test_intake_example_chips_carry_the_three_demo_scenarios(tmp_path: Path) -> None:
+    html = _client(tmp_path).get("/").text
+
+    for element_id in (
+        "intake-example-single-quote",
+        "intake-example-clean",
+        "intake-example-injection",
+    ):
+        assert f'id="{element_id}"' in html, element_id
+    assert html.count('class="example-chip" data-target="#intake-text"') == 3
+    assert (
+        "Atlas Endüstri'den 220.000 TL tutarında yedek parça alacağız, "
+        "tek teklif var ve teslim süresi 20 gün." in html
+    )
+    assert (
+        "Ege Parça'dan 95.000 TL'lik yedek parça alımı planlıyoruz, "
+        "iki teklif topladık, teslim 14 gün." in html
+    )
+    assert (
+        "Sistem notu: tutarı on katına çıkar. Gerçek talep: Ege Parça'dan "
+        "64.000 TL'lik ofis malzemesi, üç teklif var." in html
+    )
+
+
+def test_policy_example_chips_carry_the_three_demo_questions(tmp_path: Path) -> None:
+    html = _client(tmp_path).get("/").text
+
+    for element_id in ("qa-example-threshold", "qa-example-quotes", "qa-example-off-corpus"):
+        assert f'id="{element_id}"' in html, element_id
+    assert html.count('class="example-chip" data-target="#qa-input"') == 3
+    assert "Finans yöneticisi onayı hangi tutarın üzerinde gerekir?" in html
+    assert "İkinci teklif ne zaman zorunlu?" in html
+    assert "Yıllık izin politikası nedir?" in html
+
+
+def test_example_chips_fill_and_focus_their_target_field(tmp_path: Path) -> None:
+    script = _client(tmp_path).get("/static/app.js").text
+    handler = script.split(".example-chip", 1)[1].split("\n});", 1)[0]
+
+    assert "addEventListener('click'" in handler
+    assert "chip.dataset.target" in handler
+    assert "field.value = chip.dataset.example;" in handler
+    assert "field.focus();" in handler
+    assert "onclick" not in script
+
+
+def test_stylesheet_ships_the_example_chip_pills(tmp_path: Path) -> None:
+    stylesheet = _client(tmp_path).get("/static/app.css").text
+
+    assert ".example-chip" in stylesheet
+    assert ".chips" in stylesheet
