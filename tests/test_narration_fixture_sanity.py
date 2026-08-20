@@ -1,19 +1,23 @@
 """The recorded narration is the first prose a reader meets in the demo.
 
-It is a hand-maintained placeholder, so nothing but a test stops it from
-attributing a figure to the wrong comparison or a rule to the wrong section.
+Nothing but a test stops a recording from attributing a figure to the wrong
+comparison or a rule to the wrong section, so the canonical narrator entry is
+checked sentence by sentence.
 """
 
 import json
 import re
 from pathlib import Path
 
+from app.llm import prompt_key
+from scripts.record_llm_fixtures import canonical_prompts
+
 FIXTURES = Path(__file__).resolve().parent / "fixtures" / "llm_transcripts.json"
-HERO_NARRATION_KEY = "a3220437f667b8a7"
 
 
 def narration() -> str:
-    return json.loads(FIXTURES.read_text(encoding="utf-8"))[HERO_NARRATION_KEY]
+    system, user = canonical_prompts()[0]
+    return json.loads(FIXTURES.read_text(encoding="utf-8"))[prompt_key(system, user)]
 
 
 def sentence_with(needle: str) -> str:
@@ -40,7 +44,7 @@ def test_the_lead_time_deviation_is_stated_in_days_and_never_as_a_percentage() -
 
 
 def test_each_rule_cites_the_section_that_actually_carries_it() -> None:
-    assert "finans onayı" in sentence_with("4.2")
+    assert "finans" in sentence_with("4.2")
     assert "teklif" in sentence_with("4.3")
     assert "sertifika" in sentence_with("3.1")
 

@@ -29,41 +29,6 @@ NOTE = (
     "regenerate with scripts/record_llm_fixtures.py."
 )
 
-NARRATOR_USER = json.dumps(
-    {
-        "analysis": {
-            "display_variance_percent": "19.24",
-            "historical_median_try": "184500",
-            "lead_time_variance_days": 6,
-            "standard_lead_time_days": 14,
-            "variance_percent": "19.2412",
-        },
-        "citations": [
-            {
-                "document_id": "PROC-POL-2026",
-                "effective_from": "2026-01-01",
-                "section_id": "4.2",
-                "section_title": "Finans Onayı",
-                "status": "CURRENT",
-                "title": "EgeMekanik Satın Alma Politikası",
-                "version": "2026.1",
-            }
-        ],
-        "decision": {
-            "alternative_quote_missing": True,
-            "applicable_rule_ids": ["FINANCE_APPROVAL", "ALTERNATIVE_QUOTES"],
-            "blocking_reasons": ["200.000 TL üzerindeki talep finans onayı gerektirir."],
-            "certificate_status": "VALID",
-            "decision_status": "CONDITIONAL_REVIEW",
-            "finance_approval_required": True,
-            "lead_time_variance_days": 6,
-            "warnings": [],
-        },
-    },
-    ensure_ascii=False,
-    sort_keys=True,
-)
-
 INTAKE_USER = (
     "Atlas Endüstri'den 220.000 TL tutarında yedek parça alacağız, "
     "tek teklif var ve teslim süresi 20 gün. Talep numarası PR-2026-0042, "
@@ -71,10 +36,43 @@ INTAKE_USER = (
 )
 
 
+def _hero_narrator_user() -> str:
+    """Build the narrator payload from the real engine so the canonical case
+    can never drift from what the demo actually shows."""
+    import tempfile
+
+    from app.mockdesk_client import InProcessMockDeskGateway
+    from app.models import PurchaseRequest
+    from app.service import ProcurementService
+    from app.store import SQLiteStore
+    from mockdesk.store import MockDeskStore
+
+    with tempfile.TemporaryDirectory() as tmp:
+        service = ProcurementService.from_project_data(
+            store=SQLiteStore(Path(tmp) / "valuebridge.db"),
+            mockdesk_gateway=InProcessMockDeskGateway(MockDeskStore(Path(tmp) / "mockdesk.db")),
+            project_root=ROOT,
+        )
+        response = service.analyze(
+            PurchaseRequest(
+                request_id="PR-2026-0042",
+                request_date="2026-08-18",
+                supplier_name="Atlas Endüstri",
+                category="SPARE_PARTS",
+                amount_try="220000",
+                received_quotes=1,
+                offered_lead_time_days=20,
+            ),
+            role="procurement_specialist",
+            user="fixture_recorder",
+        )
+        return service._narrator_user_message(response)
+
+
 def canonical_prompts() -> list[tuple[str, str]]:
     """The (system, user) pairs the offline fixture tests replay."""
     return [
-        (load_prompt("narrator_system"), NARRATOR_USER),
+        (load_prompt("narrator_system"), _hero_narrator_user()),
         (load_prompt("intake_system"), INTAKE_USER),
     ]
 
