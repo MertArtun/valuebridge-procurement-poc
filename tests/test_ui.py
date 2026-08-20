@@ -334,3 +334,49 @@ def test_stylesheet_ships_the_example_chip_pills(tmp_path: Path) -> None:
 
     assert ".example-chip" in stylesheet
     assert ".chips" in stylesheet
+
+
+def test_action_buttons_report_a_failing_request_instead_of_going_silent(
+    tmp_path: Path,
+) -> None:
+    script = _client(tmp_path).get("/static/app.js").text
+    handlers = {
+        name: script.split(f"{name}Button.addEventListener", 1)[1].split("\n});", 1)[0]
+        for name in ("approve", "reject", "execute")
+    }
+
+    for name, handler in handlers.items():
+        assert "  try {" in handler, name
+        assert f"}} catch ({name}Error) {{" in handler, name
+        assert "} finally {" in handler, name
+        assert "showBanner('#action-error'" in handler, name
+        assert "Sunucuya ulaşılamadı" in handler, name
+
+
+def test_action_buttons_are_disabled_while_their_own_request_is_in_flight(
+    tmp_path: Path,
+) -> None:
+    script = _client(tmp_path).get("/static/app.js").text
+    handlers = {
+        name: script.split(f"{name}Button.addEventListener", 1)[1].split("\n});", 1)[0]
+        for name in ("approve", "reject", "execute")
+    }
+
+    for name, handler in handlers.items():
+        assert handler.index(f"{name}Button.disabled = true;") < handler.index("await fetch"), name
+    assert "executeButton.disabled = false;" in handlers["execute"].split("} finally {", 1)[1]
+    assert "approveButton.disabled = approved;" in handlers["approve"]
+    assert "executeButton.disabled = !approved;" in handlers["approve"]
+    assert "approveButton.disabled = rejected;" in handlers["reject"]
+
+
+def test_audit_refresh_reports_a_failure_instead_of_throwing(tmp_path: Path) -> None:
+    script = _client(tmp_path).get("/static/app.js").text
+    refresh = script.split("async function refreshAudit() {", 1)[-1].split("\n}", 1)[0]
+    button = script.split("auditButton.addEventListener", 1)[1].split("\n});", 1)[0]
+
+    assert "catch (auditError)" in refresh
+    assert "Audit trail alınamadı" in refresh
+    assert "auditButton.disabled = true;" in button
+    assert "} finally {" in button
+    assert "auditButton.disabled = false;" in button

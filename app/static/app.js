@@ -306,66 +306,95 @@ async function renderActionPreview() {
 }
 
 approveButton.addEventListener('click', async () => {
-  const response = await fetch(`/api/v1/approvals/${approvalId}/approve`, {
-    method: 'POST',
-    headers: headers('finance_approver', 'finance_user'),
-  });
-  const body = await response.json();
-  document.querySelector('#action-result').textContent = JSON.stringify(body, null, 2);
-  if (response.ok) {
-    hideBanner('#action-error');
-    approvalStatus.textContent = APPROVAL_LABELS[body.status] || body.status;
-    approveButton.disabled = true;
-    rejectButton.disabled = true;
-    executeButton.disabled = false;
-  } else {
-    showBanner('#action-error', errorMessage(body));
+  approveButton.disabled = true;
+  rejectButton.disabled = true;
+  let approved = false;
+  try {
+    const response = await fetch(`/api/v1/approvals/${approvalId}/approve`, {
+      method: 'POST',
+      headers: headers('finance_approver', 'finance_user'),
+    });
+    const body = await response.json();
+    document.querySelector('#action-result').textContent = JSON.stringify(body, null, 2);
+    if (response.ok) {
+      hideBanner('#action-error');
+      approvalStatus.textContent = APPROVAL_LABELS[body.status] || body.status;
+      approved = true;
+    } else {
+      showBanner('#action-error', errorMessage(body));
+    }
+  } catch (approveError) {
+    showBanner('#action-error', `Sunucuya ulaşılamadı: ${approveError.message}`);
+  } finally {
+    approveButton.disabled = approved;
+    rejectButton.disabled = approved;
+    executeButton.disabled = !approved;
   }
   await refreshAudit();
 });
 
 rejectButton.addEventListener('click', async () => {
-  const response = await fetch(`/api/v1/approvals/${approvalId}/reject`, {
-    method: 'POST',
-    headers: headers('finance_approver', 'finance_user'),
-  });
-  const body = await response.json();
-  document.querySelector('#action-result').textContent = JSON.stringify(body, null, 2);
-  if (response.ok) {
-    hideBanner('#action-error');
-    statusBadge.textContent = 'REDDEDİLDİ';
-    approvalStatus.textContent = APPROVAL_LABELS[body.status] || body.status;
-    approveButton.disabled = true;
-    rejectButton.disabled = true;
+  approveButton.disabled = true;
+  rejectButton.disabled = true;
+  let rejected = false;
+  try {
+    const response = await fetch(`/api/v1/approvals/${approvalId}/reject`, {
+      method: 'POST',
+      headers: headers('finance_approver', 'finance_user'),
+    });
+    const body = await response.json();
+    document.querySelector('#action-result').textContent = JSON.stringify(body, null, 2);
+    if (response.ok) {
+      hideBanner('#action-error');
+      statusBadge.textContent = 'REDDEDİLDİ';
+      approvalStatus.textContent = APPROVAL_LABELS[body.status] || body.status;
+      rejected = true;
+    } else {
+      showBanner('#action-error', errorMessage(body));
+    }
+  } catch (rejectError) {
+    showBanner('#action-error', `Sunucuya ulaşılamadı: ${rejectError.message}`);
+  } finally {
+    approveButton.disabled = rejected;
+    rejectButton.disabled = rejected;
     executeButton.disabled = true;
-  } else {
-    showBanner('#action-error', errorMessage(body));
   }
   await refreshAudit();
 });
 
 executeButton.addEventListener('click', async () => {
-  const response = await fetch(`/api/v1/tool-actions/${approvalId}/execute`, {
-    method: 'POST',
-    headers: headers('procurement_specialist', 'procurement_user'),
-  });
-  const body = await response.json();
-  document.querySelector('#action-result').textContent = JSON.stringify(body, null, 2);
-  if (!response.ok) {
+  executeButton.disabled = true;
+  try {
+    const response = await fetch(`/api/v1/tool-actions/${approvalId}/execute`, {
+      method: 'POST',
+      headers: headers('procurement_specialist', 'procurement_user'),
+    });
+    const body = await response.json();
+    document.querySelector('#action-result').textContent = JSON.stringify(body, null, 2);
+    if (!response.ok) {
+      hideBanner('#execution-success');
+      hideBanner('#duplicate-notice');
+      showBanner('#action-error', errorMessage(body));
+    } else if (body.status === 'ALREADY_PROCESSED') {
+      hideBanner('#action-error');
+      hideBanner('#execution-success');
+      showBanner(
+        '#duplicate-notice',
+        `Aynı idempotency anahtarı ikinci kayıt açmadı; mevcut kayıt ${body.ticket_id}.`,
+      );
+    } else {
+      hideBanner('#action-error');
+      hideBanner('#duplicate-notice');
+      showBanner('#execution-success', `Kayıt ${body.ticket_id} · durum ${body.status}.`);
+    }
+  } catch (executeError) {
     hideBanner('#execution-success');
     hideBanner('#duplicate-notice');
-    showBanner('#action-error', errorMessage(body));
-  } else if (body.status === 'ALREADY_PROCESSED') {
-    hideBanner('#action-error');
-    hideBanner('#execution-success');
-    showBanner(
-      '#duplicate-notice',
-      `Aynı idempotency anahtarı ikinci kayıt açmadı; mevcut kayıt ${body.ticket_id}.`,
-    );
-  } else {
-    hideBanner('#action-error');
-    hideBanner('#duplicate-notice');
-    showBanner('#execution-success', `Kayıt ${body.ticket_id} · durum ${body.status}.`);
+    showBanner('#action-error', `Sunucuya ulaşılamadı: ${executeError.message}`);
+  } finally {
+    // Re-running an approved action is the idempotency demo, so the button
+    // stays live after a success.
+    executeButton.disabled = false;
   }
   await refreshAudit();
 });
@@ -416,7 +445,14 @@ qaButton.addEventListener('click', async () => {
   }
 });
 
-auditButton.addEventListener('click', refreshAudit);
+auditButton.addEventListener('click', async () => {
+  auditButton.disabled = true;
+  try {
+    await refreshAudit();
+  } finally {
+    auditButton.disabled = false;
+  }
+});
 
 const metricsButton = document.querySelector('#metrics-button');
 
@@ -474,11 +510,20 @@ function auditEventNode(item) {
 }
 
 async function refreshAudit() {
-  const response = await fetch('/api/v1/audit/events', {
-    headers: headers('solution_engineer', 'solution_engineer'),
-  });
-  const events = await response.json();
   const container = document.querySelector('#audit-events');
+  let response;
+  let events;
+  try {
+    response = await fetch('/api/v1/audit/events', {
+      headers: headers('solution_engineer', 'solution_engineer'),
+    });
+    events = await response.json();
+  } catch (auditError) {
+    container.replaceChildren(
+      createElement('p', { text: `Audit trail alınamadı: ${auditError.message}` }),
+    );
+    return;
+  }
   if (!response.ok || !Array.isArray(events)) {
     container.replaceChildren(createElement('pre', { text: JSON.stringify(events, null, 2) }));
     return;
