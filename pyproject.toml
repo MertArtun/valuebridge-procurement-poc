@@ -35,7 +35,7 @@ select = ["E", "F", "I", "B", "UP"]
 
 [tool.setuptools.packages.find]
 include = ["app*", "mockdesk*"]
-exclude = ["tests*", "data*", "docs*", "evals*", "handoff*", "reports*", "runtime*", "scripts*"]
+exclude = ["tests*", "data*", "docs*", "evals*", "reports*", "runtime*", "scripts*"]
 
 [tool.setuptools.package-data]
 app = ["templates/*.html", "static/*.css", "static/*.js", "prompts/*.md"]

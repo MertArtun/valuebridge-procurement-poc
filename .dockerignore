@@ -14,4 +14,3 @@ htmlcov/
 *.egg-info/
 MANIFEST.json
 PACKAGE_QA_REPORT.md
-handoff/
