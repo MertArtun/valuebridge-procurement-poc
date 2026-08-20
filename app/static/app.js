@@ -553,4 +553,20 @@ function renderSecurityNotice(events) {
   );
 }
 
+async function renderBuildInfo() {
+  let info;
+  try {
+    const response = await fetch('/api/v1/status');
+    if (!response.ok) return;
+    info = await response.json();
+  } catch (statusError) {
+    return;
+  }
+  const llm = info.llm_enabled ? 'LLM açık' : 'LLM kapalı';
+  const retrieval = info.embedding_index_present ? 'hibrit' : 'sözcüksel';
+  const line = `Build ${info.build_sha} · ${llm} · Getirme: ${retrieval}`;
+  document.querySelector('#build-info').textContent = line;
+}
+
 applySessionRequestId();
+renderBuildInfo();

@@ -8,10 +8,15 @@ services:
 
   valuebridge:
     restart: unless-stopped
+    build:
+      context: .
+      args:
+        BUILD_SHA: ${BUILD_SHA:-dev}
     env_file:
       - ../.env
     environment:
       VALUEBRIDGE_DEMO_MODE: "1"
+      VALUEBRIDGE_REDACT_QA_AUDIT: "1"
     volumes:
       - valuebridge-runtime:/app/runtime
       - ../policy_embeddings.json:/app/data/policy_embeddings.json:ro

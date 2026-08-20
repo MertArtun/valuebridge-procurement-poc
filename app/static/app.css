@@ -16,6 +16,7 @@ button.primary { background: #14213d; color: #fff; border-color: #14213d; font-w
 h1 { font-size: clamp(3.2rem, 9vw, 6.5rem); line-height: .9; letter-spacing: -.06em; margin: 14px 0 20px; }
 .lede { max-width: 780px; font-size: clamp(1.05rem, 2vw, 1.28rem); line-height: 1.65; color: #40516a; }
 .notice { display: inline-block; margin-top: 14px; padding: 9px 12px; border-radius: 9px; background: #dfe7f1; color: #334760; font-size: .85rem; }
+.notice-privacy { display: block; max-width: 780px; margin-top: 10px; background: #f2ecdd; color: #5c4c2c; }
 .card { background: #fff; padding: 28px; border-radius: 18px; box-shadow: 0 16px 48px rgba(31, 45, 61, .07); margin-top: 22px; border: 1px solid #e4e9ef; }
 .process { background: #15223b; color: #fff; }
 .flow { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
@@ -56,6 +57,7 @@ small.hint { display: block; margin: 12px 0 0; }
 .audit-event small { color: #59697e; overflow-wrap: anywhere; }
 .audit-detail { padding: 0 12px 12px; }
 .audit-trace { margin: 0 0 10px; color: #40516a; overflow-wrap: anywhere; }
+.buildline { display: block; margin-top: 26px; color: #6b7a8f; font-size: .78rem; letter-spacing: .02em; }
 :focus-visible { outline: 3px solid #14213d; outline-offset: 2px; }
 .hidden { display: none; }
 @media (max-width: 720px) {

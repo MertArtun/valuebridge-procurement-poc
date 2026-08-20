@@ -58,3 +58,17 @@ def test_certificate_storage_survives_the_nightly_volume_reset() -> None:
     caddy_data = [volume for volume in volumes if ":/data" in volume]
 
     assert caddy_data == ["../caddy-data:/data"]
+
+
+def test_demo_overlay_stamps_the_build_and_redacts_the_question_audit() -> None:
+    valuebridge = load_demo_service()["valuebridge"]
+
+    assert valuebridge["build"]["args"]["BUILD_SHA"] == "${BUILD_SHA:-dev}"
+    assert valuebridge["environment"]["VALUEBRIDGE_REDACT_QA_AUDIT"] == "1"
+
+
+def test_the_image_carries_the_build_sha_it_was_built_with() -> None:
+    dockerfile = Path("Dockerfile").read_text(encoding="utf-8")
+
+    assert "ARG BUILD_SHA=dev" in dockerfile
+    assert "ENV VALUEBRIDGE_BUILD_SHA=$BUILD_SHA" in dockerfile

@@ -103,8 +103,10 @@ class ProcurementService:
         chat_client: ChatClient | None = None,
         embedding_client: EmbeddingClient | None = None,
         embeddings_path: Path | None = None,
+        redact_question_audit: bool = False,
     ) -> None:
         self.store = store
+        self.redact_question_audit = redact_question_audit
         self.mockdesk_gateway = mockdesk_gateway
         self.policy_repository = policy_repository
         self.policy_engine = policy_engine
@@ -127,6 +129,7 @@ class ProcurementService:
         project_root: Path,
         chat_client: ChatClient | None = None,
         embedding_client: EmbeddingClient | None = None,
+        redact_question_audit: bool = False,
     ) -> ProcurementService:
         return cls(
             store=store,
@@ -138,6 +141,7 @@ class ProcurementService:
             chat_client=chat_client,
             embedding_client=embedding_client,
             embeddings_path=project_root / "data" / "policy_embeddings.json",
+            redact_question_audit=redact_question_audit,
         )
 
     def analyze(self, request: PurchaseRequest, *, role: str, user: str) -> AnalysisResponse:
@@ -348,16 +352,22 @@ class ProcurementService:
             )
             raise
         sections = result["sections"]
+        details: dict[str, object] = {
+            "retrieval_mode": result["retrieval_mode"],
+            "section_ids": [section["section_id"] for section in sections],
+            "injection_rule_id": injection_rule_id,
+        }
+        # A shared demo publishes this trail to every visitor, so the asker's own
+        # words are reduced to their length there.
+        if self.redact_question_audit:
+            details["question_length"] = len(question)
+        else:
+            details["question"] = question[:120]
         self.store.add_audit(
             event_type="POLICY_QA",
             actor=user,
             trace_id=trace_id,
-            details={
-                "question": question[:120],
-                "retrieval_mode": result["retrieval_mode"],
-                "section_ids": [section["section_id"] for section in sections],
-                "injection_rule_id": injection_rule_id,
-            },
+            details=details,
         )
         return PolicyQaResponse(
             question=question,

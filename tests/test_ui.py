@@ -380,3 +380,33 @@ def test_audit_refresh_reports_a_failure_instead_of_throwing(tmp_path: Path) -> 
     assert "auditButton.disabled = true;" in button
     assert "} finally {" in button
     assert "auditButton.disabled = false;" in button
+
+
+def test_home_warns_that_the_demo_environment_is_shared(tmp_path: Path) -> None:
+    html = _client(tmp_path).get("/").text
+
+    assert 'class="notice notice-privacy"' in html
+    assert "yalnızca sentetik veri girin" in html
+    assert "model sağlayıcısına gönderilebilir" in html
+    assert "her gece 03:00" in html
+
+
+def test_footer_reports_the_build_and_the_capability_flags(tmp_path: Path) -> None:
+    html = _client(tmp_path).get("/").text
+    script = _client(tmp_path).get("/static/app.js").text
+    render = script.split("async function renderBuildInfo() {", 1)[-1].split("\n}", 1)[0]
+
+    assert '<footer class="buildline" id="build-info">' in html
+    assert "'/api/v1/status'" in render
+    assert "'LLM açık'" in render
+    assert "'LLM kapalı'" in render
+    assert "info.embedding_index_present ? 'hibrit' : 'sözcüksel'" in render
+    assert "catch (statusError)" in render
+    assert "renderBuildInfo();" in script
+
+
+def test_stylesheet_ships_the_privacy_notice_and_the_build_line(tmp_path: Path) -> None:
+    stylesheet = _client(tmp_path).get("/static/app.css").text
+
+    assert ".notice-privacy" in stylesheet
+    assert ".buildline" in stylesheet

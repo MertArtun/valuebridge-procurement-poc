@@ -5,6 +5,7 @@ import time
 from collections.abc import Callable
 from pathlib import Path
 
+import httpx
 from fastapi import FastAPI, Header, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -42,6 +43,12 @@ _DOCS_PATHS = {"/docs", "/redoc", "/openapi.json"}
 _DEMO_RATE_LIMIT_CAPACITY = 30
 _DEMO_RATE_LIMIT_PER_MINUTE = 30
 
+# The status card is what a visitor checks when the demo looks broken, so it
+# has to answer while everything else is throttled.
+_RATE_LIMIT_EXEMPT_PATHS = {"/api/v1/status"}
+_EMBEDDINGS_INDEX = PROJECT_ROOT / "data" / "policy_embeddings.json"
+_MOCKDESK_PROBE_TIMEOUT_SECONDS = 1.0
+
 
 def _default_service() -> ProcurementService:
     store = SQLiteStore(
@@ -54,6 +61,7 @@ def _default_service() -> ProcurementService:
         project_root=PROJECT_ROOT,
         chat_client=chat_client_from_env(),
         embedding_client=embedding_client_from_env(),
+        redact_question_audit=os.getenv("VALUEBRIDGE_REDACT_QA_AUDIT") == "1",
     )
 
 
@@ -90,7 +98,8 @@ def create_app(
         # layer: a throttled response still carries the demo headers.
         @app.middleware("http")
         async def demo_rate_limit(request: Request, call_next):
-            if not request.url.path.startswith("/api/"):
+            path = request.url.path
+            if not path.startswith("/api/") or path in _RATE_LIMIT_EXEMPT_PATHS:
                 return await call_next(request)
             retry_after = limiter.consume(_client_key(request))
             if retry_after is None:
@@ -133,6 +142,18 @@ def create_app(
     @app.get("/health")
     def health() -> dict[str, str]:
         return {"status": "ok"}
+
+    @app.get("/api/v1/status")
+    def status() -> dict[str, object]:
+        """Capability flags for the demo footer: booleans only, no secrets."""
+        return {
+            "status": "ok",
+            "build_sha": os.getenv("VALUEBRIDGE_BUILD_SHA", "dev"),
+            "llm_enabled": bool(os.getenv("VALUEBRIDGE_LLM_API_KEY")),
+            "embedding_index_present": _EMBEDDINGS_INDEX.exists(),
+            "demo_mode": demo_mode,
+            "mockdesk_reachable": _mockdesk_reachable(),
+        }
 
     @app.get("/", response_class=HTMLResponse)
     def home(request: Request):
@@ -253,6 +274,19 @@ def create_app(
         return summarize(resolve_service().store.list_audit())
 
     return app
+
+
+def _mockdesk_reachable() -> bool:
+    """Probe the gateway for the status card; a failure is an answer, not an error."""
+    base_url = os.getenv("MOCKDESK_URL", "http://mockdesk:8001").rstrip("/")
+    try:
+        response = httpx.get(
+            f"{base_url}/health",
+            timeout=_MOCKDESK_PROBE_TIMEOUT_SECONDS,
+        )
+    except Exception:
+        return False
+    return response.status_code == 200
 
 
 def _client_key(request: Request) -> str:

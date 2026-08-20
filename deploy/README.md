@@ -4,7 +4,14 @@ Runs the PoC behind Caddy at
 [valuebridge.62-238-40-66.sslip.io](https://valuebridge.62-238-40-66.sslip.io)
 with `VALUEBRIDGE_DEMO_MODE=1`: every response is marked `noindex, nofollow`
 and `/api/**` is rate limited per client IP (30 requests, refilling at 30 per
-minute). Requires Docker Compose v2.24 or newer for the `!override` merge tag.
+minute). `/api/v1/status` is exempt from the limit so the page footer keeps
+answering while everything else is throttled. Requires Docker Compose v2.24 or
+newer for the `!override` merge tag.
+
+The overlay also sets `VALUEBRIDGE_REDACT_QA_AUDIT=1`. The audit trail is
+readable by every visitor here, so the `POLICY_QA` event records only the
+length of the asked question instead of its text. A private deployment leaves
+the variable unset and keeps the truncated question, which is the default.
 
 ## Host layout
 
@@ -41,8 +48,15 @@ ports 80 and 443 have to be reachable for Caddy to complete the ACME challenge.
 
 ```bash
 cd ~/valuebridge/app
+export BUILD_SHA="$(git rev-parse --short HEAD)"
 docker compose -p valuebridge -f docker-compose.yml -f docker-compose.demo.yml up -d --build
 ```
+
+`BUILD_SHA` reaches the image as the `VALUEBRIDGE_BUILD_SHA` environment
+variable and is what `/api/v1/status` reports in the page footer, so a visitor
+and a bug report can agree on which revision is live. Unset, it stays `dev`.
+The systemd units start the stack without `--build`, so the nightly reset
+reuses the stamped image rather than replacing the value.
 
 The application listens on `127.0.0.1:8090` for local smoke tests; external
 traffic reaches it only through Caddy, which is what makes the rate limiter's
@@ -75,10 +89,13 @@ services carry no `Restart=` directive because every container declares
 
 ```bash
 curl -fsS https://valuebridge.62-238-40-66.sslip.io/health
+curl -fsS https://valuebridge.62-238-40-66.sslip.io/api/v1/status
 curl -sI https://valuebridge.62-238-40-66.sslip.io/ | grep -i x-robots-tag
 ```
 
-Expected: `{"status":"ok"}` and `x-robots-tag: noindex, nofollow`.
+Expected: `{"status":"ok"}`, a status document whose `build_sha` matches the
+deployed revision and whose `mockdesk_reachable` is `true`, and
+`x-robots-tag: noindex, nofollow`.
 
 Rate limiting, from the host:
 
