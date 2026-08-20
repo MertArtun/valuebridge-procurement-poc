@@ -266,6 +266,23 @@ python scripts/embed_policy_sections.py
 
 Bu komut `data/policy_embeddings.json` dosyasını yazar; sonrasında `/api/v1/policies/ask` `retrieval_mode: "hybrid"` bildirir. Dosya yoksa retrieval `lexical` kalır ve yönetişim filtreleri değişmez. `scripts/record_llm_fixtures.py`, testlerin kullandığı kayıtlı sağlayıcı yanıtlarını tazeler; CI hiçbir zaman bir sağlayıcıya çıkmaz.
 
+## Doküman rehberi
+
+`docs/` klasörü, vaka çalışmasının müşteriye dönük yazılı izidir. En iyi giriş noktaları:
+
+| Doküman | Ne anlatır |
+|---|---|
+| [01 — Yönetici özeti](docs/01_EXECUTIVE_BRIEF.md) | Problemin ve çözümün tek sayfalık iş özeti |
+| [02 — PRD](docs/02_PRD.md) | Problem tanımı, personalar, fonksiyonel gereksinimler, hedef dışı maddeler ve yayın kapıları |
+| [03 — FDE vaka çalışması](docs/03_FDE_CASE_STUDY.md) | Süreç keşfi: paydaşlar, mevcut/hedef akışlar, keşif soruları, pilot ve devir planı |
+| [05 — Mimari](docs/05_ARCHITECTURE.md) | Bileşenler, sınırlar ve [docs/adrs](docs/adrs) altındaki karar kayıtları |
+| [07 — Güvenlik tehdit modeli](docs/07_SECURITY_THREAT_MODEL.md) | Güven sınırları, güvenilmeyen girdiler ve injection'ın etkisiz kılınması |
+| [08 — Değerlendirme planı](docs/08_EVALUATION_PLAN.md) | Donmuş değerlendirme aileleri, LLM kalite benchmark'ı ve tarihli referans koşusu |
+| [09 — SkyStudio iş akışı taslağı](docs/09_SKYSTUDIO_WORKFLOW_BLUEPRINT.md) | Belgelenmiş SkyStudio yapılarına adım adım eşleme — doğrulanmamış durumu açıkça belirtilmiş |
+| [10 — Pilot metrikleri](docs/10_PILOT_METRICS.md) | Audit trail'in bugün ölçtükleri ve gerçek bir pilotta baseline alınacaklar |
+| [11 — Demo scripti](docs/11_DEMO_SCRIPT.md) | 90 saniyelik yönetici demosu ve teknik anlatım |
+| [14 — Varsayımlar ve sınırlar](docs/14_ASSUMPTIONS_LIMITATIONS.md) | Neyin sentetik olduğu, neyin kapsam dışı olduğu ve nedenleri |
+
 ## Depo haritası
 
 ```text

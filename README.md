@@ -266,6 +266,23 @@ python scripts/embed_policy_sections.py
 
 This writes `data/policy_embeddings.json`, after which `/api/v1/policies/ask` reports `retrieval_mode: "hybrid"`. Without the file, retrieval stays `lexical` and the governance filters are unchanged. `scripts/record_llm_fixtures.py` refreshes the recorded provider transcripts used by the tests; CI never calls a provider.
 
+## Documentation guide
+
+The `docs/` folder is the customer-facing paper trail of the case study. The best entry points:
+
+| Document | What it covers |
+|---|---|
+| [01 — Executive brief](docs/01_EXECUTIVE_BRIEF.md) | The one-page business summary of the problem and the solution |
+| [02 — PRD](docs/02_PRD.md) | Problem definition, personas, functional requirements, non-goals and release gates |
+| [03 — FDE case study](docs/03_FDE_CASE_STUDY.md) | Process discovery: stakeholders, as-is/to-be flows, discovery questions, pilot and handoff plan |
+| [05 — Architecture](docs/05_ARCHITECTURE.md) | Components, boundaries and the decision records in [docs/adrs](docs/adrs) |
+| [07 — Security threat model](docs/07_SECURITY_THREAT_MODEL.md) | Trust boundaries, untrusted inputs and injection containment |
+| [08 — Evaluation plan](docs/08_EVALUATION_PLAN.md) | Frozen evaluation families, the LLM quality benchmark and a dated reference run |
+| [09 — SkyStudio workflow blueprint](docs/09_SKYSTUDIO_WORKFLOW_BLUEPRINT.md) | Step-by-step mapping onto documented SkyStudio constructs, with its unvalidated status stated plainly |
+| [10 — Pilot metrics](docs/10_PILOT_METRICS.md) | What the audit trail measures today and what a real pilot would baseline |
+| [11 — Demo script](docs/11_DEMO_SCRIPT.md) | The 90-second executive demo and the technical walkthrough |
+| [14 — Assumptions and limitations](docs/14_ASSUMPTIONS_LIMITATIONS.md) | What is synthetic, what is out of scope and why |
+
 ## Repository map
 
 ```text
