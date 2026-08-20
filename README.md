@@ -281,7 +281,7 @@ The `docs/` folder is the customer-facing paper trail of the case study. The bes
 | [09 — SkyStudio workflow blueprint](docs/09_SKYSTUDIO_WORKFLOW_BLUEPRINT.md) | Step-by-step mapping onto documented SkyStudio constructs, with its unvalidated status stated plainly |
 | [10 — Pilot metrics](docs/10_PILOT_METRICS.md) | What the audit trail measures today and what a real pilot would baseline |
 | [11 — Demo script](docs/11_DEMO_SCRIPT.md) | The 90-second executive demo and the technical walkthrough |
-| [14 — Assumptions and limitations](docs/14_ASSUMPTIONS_LIMITATIONS.md) | What is synthetic, what is out of scope and why |
+| [13 — Assumptions and limitations](docs/13_ASSUMPTIONS_LIMITATIONS.md) | What is synthetic, what is out of scope and why |
 
 ## Repository map
 

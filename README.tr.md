@@ -281,7 +281,7 @@ Bu komut `data/policy_embeddings.json` dosyasını yazar; sonrasında `/api/v1/p
 | [09 — SkyStudio iş akışı taslağı](docs/09_SKYSTUDIO_WORKFLOW_BLUEPRINT.md) | Belgelenmiş SkyStudio yapılarına adım adım eşleme — doğrulanmamış durumu açıkça belirtilmiş |
 | [10 — Pilot metrikleri](docs/10_PILOT_METRICS.md) | Audit trail'in bugün ölçtükleri ve gerçek bir pilotta baseline alınacaklar |
 | [11 — Demo scripti](docs/11_DEMO_SCRIPT.md) | 90 saniyelik yönetici demosu ve teknik anlatım |
-| [14 — Varsayımlar ve sınırlar](docs/14_ASSUMPTIONS_LIMITATIONS.md) | Neyin sentetik olduğu, neyin kapsam dışı olduğu ve nedenleri |
+| [13 — Varsayımlar ve sınırlar](docs/13_ASSUMPTIONS_LIMITATIONS.md) | Neyin sentetik olduğu, neyin kapsam dışı olduğu ve nedenleri |
 
 ## Depo haritası
 
