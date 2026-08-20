@@ -1,5 +1,7 @@
 # ValueBridge — Forward-Deployed Procurement AI Case Study
 
+[![CI](https://github.com/MertArtun/valuebridge-procurement-poc/actions/workflows/ci.yml/badge.svg)](https://github.com/MertArtun/valuebridge-procurement-poc/actions/workflows/ci.yml)
+
 > From process discovery to a measurable, human-approved enterprise workflow.
 
 ValueBridge is a bounded, production-minded portfolio PoC showing how a Solution Engineer can turn an ambiguous operational process into an explainable, controlled and testable AI-assisted workflow.
@@ -100,7 +102,7 @@ The `.mmd` sources live in [`docs/diagrams/`](docs/diagrams).
 
 ## Verified system behavior
 
-171 tests, 9 project invariants (`scripts/verify.py`) and 15 frozen evaluation cases (`scripts/run_evals.py`) cover:
+202 tests, 9 project invariants (`scripts/verify.py`) and 15 frozen evaluation cases (`scripts/run_evals.py`) cover:
 
 **Decision core**
 

@@ -6,7 +6,7 @@
 |---|---|---|
 | Lint | `ruff check .` | Clean |
 | Browser script syntax | `node --check app/static/app.js` | Clean |
-| Test suite | `pytest -q` | 171 passed |
+| Test suite | `pytest -q` | 202 passed |
 | Project invariants | `python scripts/verify.py` | 9 checks passed |
 | Frozen evaluations | `python scripts/run_evals.py` | 15 cases passed, 0 failed |
 
@@ -57,8 +57,11 @@ The layer is off unless `VALUEBRIDGE_LLM_API_KEY` is set; the whole suite runs k
 
 ### Independence
 
-- MockDesk shares no module with the `app` package; an AST test enforces the
-  boundary (`tests/test_mockdesk_independence.py`)
+- The `mockdesk` package never imports `app`; an AST test enforces that one-way
+  boundary (`tests/test_mockdesk_independence.py`). The production path crosses
+  an HTTP service boundary; tests use an in-process adapter in
+  `app.mockdesk_client` that imports MockDesk's store and errors, and both
+  services are built from the same repository image.
 
 ## Known limitations
 
@@ -74,8 +77,5 @@ The layer is off unless `VALUEBRIDGE_LLM_API_KEY` is set; the whole suite runs k
 
 ## Roadmap
 
-1. Publish the hosted demo and link it from the README.
-2. Validate the SkyStudio workflow blueprint inside an authorized workspace and
+1. Validate the SkyStudio workflow blueprint inside an authorized workspace and
    replace the mapping table with observed node behavior.
-3. Record policy-section embeddings for the hosted demo so hybrid retrieval is
-   exercised there as well as lexically.
