@@ -1,24 +1,46 @@
-# ValueBridge — Forward-Deployed Procurement AI Case Study
+<div align="center">
+
+# ValueBridge
+
+**From process discovery to a measurable, human-approved enterprise workflow.**
+
+An AI-assisted procurement exception workflow — a bounded, production-minded portfolio PoC.
 
 [![CI](https://github.com/MertArtun/valuebridge-procurement-poc/actions/workflows/ci.yml/badge.svg)](https://github.com/MertArtun/valuebridge-procurement-poc/actions/workflows/ci.yml)
+[![Python 3.12](https://img.shields.io/badge/python-3.12-blue)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-API-009688)](https://fastapi.tiangolo.com/)
+[![License MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![Live demo](https://img.shields.io/badge/demo-live-brightgreen)](https://valuebridge.62-238-40-66.sslip.io)
 
-> From process discovery to a measurable, human-approved enterprise workflow.
+**English** | [Türkçe](README.tr.md)
 
-ValueBridge is a bounded, production-minded portfolio PoC showing how a Solution Engineer can turn an ambiguous operational process into an explainable, controlled and testable AI-assisted workflow.
+</div>
 
 ![ValueBridge hero akışı](docs/assets/ui-hero-analysis.png)
 
-## Live demo
+ValueBridge shows how a Solution Engineer can turn an ambiguous operational process into an explainable, controlled and testable AI-assisted workflow. Every decision is deterministic and human-governed; the model layer is optional and only ever narrates, drafts or cites.
 
-**https://valuebridge.62-238-40-66.sslip.io** — live hosted demo (rate-limited, database resets nightly). The [Quick start](#quick-start) brings the same system up locally in two commands, and `bash scripts/demo.sh` asserts the whole path end to end.
+## Live demo — a 60-second tour
 
-## Türkçe özet
+**https://valuebridge.62-238-40-66.sslip.io**
 
-Kurgusal EgeMekanik A.Ş. için 220.000 TL tutarındaki satın alma talebi incelenir. Sistem talep tarihinde geçerli politikayı seçer, yalnızca o tarihe kadar tamamlanmış satın alma kayıtlarından kategori medyanını hesaplar, fiyat sapmasını bulur, teklif ve sertifika kontrollerini yürütür ve gerekli finans onayını oluşturur. Açık insan onayından sonra MockDesk üzerinde atomik ve payload-aware idempotency ile ticket açılır; bütün kritik adımlar audit trail'e kaydedilir.
+The instance is rate-limited and the database resets nightly at 03:00 Istanbul time, so nothing you click there is permanent. Follow the numbered steps below and you will have seen the whole system without reading anything else on this page. [Quick start](#quick-start) brings the same system up locally.
 
-Model katmanı isteğe bağlıdır ve yalnızca anlatım üretir: serbest metni insanın gözden geçireceği bir taslağa çevirir, kilitlenmiş kararı Türkçe anlatır ve yalnızca yönetişimi yapılmış politika bölümlerinden cevap yazar. Anahtar tanımlı değilse sistem aynı kararları verir; sadece bu üç alan boş kalır.
+1. **Start from free text, and notice who is in control.** In the intake box, under *Hazır örnekler*, click the **Tek teklifli acil alım** chip — it fills in the hero case. Press **Taslak Çıkar**. The model writes a *draft* into the form and lists what is missing. It does not analyze, decide or submit anything. The workflow only moves when you review the form and press **Talebi Analiz Et**.
 
-Bu çalışma bağımsız bir portföy projesidir. Gerçek SKYMOD ürünü, müşteri deployment'ı veya ölçülmüş iş sonucu değildir.
+2. **Analyze the hero case.** Atlas Endüstri, 220,000 TRY, 1 quote, 20 days lead time. The result is `CONDITIONAL_REVIEW`, backed by section-level policy citations, with exactly one approval opened for the finance approver.
+
+3. **Approve, execute — then execute again.** Approve as the finance role, then execute the action; MockDesk returns a new ticket. Now press execute a **second** time with the same approved action: the response is `ALREADY_PROCESSED` and you get the same ticket back, not a duplicate. This is the step worth watching — idempotency is enforced at the integration boundary, not by hoping the user does not double-click.
+
+4. **Find a rule that has no override.** In the supplier field, open the dropdown and choose **Vega Hidrolik**, listed as a suspended supplier. The decision is `REJECTED`, no approval is opened, and no "approve it anyway" path appears anywhere in the interface.
+
+5. **Probe the thresholds.** They are strict greater-than comparisons: **200,000 TRY** exactly passes without finance approval, **200,001 TRY** requires it. Above **100,000 TRY**, a second quote becomes mandatory — which is why the hero case, with one quote, cannot pass cleanly.
+
+6. **Try to hijack the assistant.** The **Gömülü talimat denemesi** chip fills the intake box with text containing an embedded instruction aimed at the model. Draft it: the embedded instruction is *not* followed. It is treated as data, flagged with an `injection_rule_id`, and recorded in the audit trail.
+
+7. **Ask the policy corpus two questions.** The **Finans eşiği** chip returns an answer cited to PROC-POL-2026 §4.2, served in `hybrid` retrieval mode. The **Korpus dışı soru** chip asks something the corpus does not cover, and the system says so — abstention rather than a fluent invention.
+
+8. **Check the receipts.** The metrics and audit panels are not separate counters; every number is folded out of the audit trail, so anything you just did is reconstructable from it.
 
 ## Hero result
 
