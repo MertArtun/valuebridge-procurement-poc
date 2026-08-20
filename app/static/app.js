@@ -33,6 +33,32 @@ const RETRIEVAL_MODE_LABELS = {
   hybrid: 'Hibrit (vektör + sözcüksel)',
 };
 
+// A shared demo would collide on one hard-coded request number, so every visit
+// analyses its own request while the chip texts stay copy-paste complete.
+const REQUEST_ID_TOKEN = '__REQUEST_ID__';
+const REQUEST_ID_STORAGE_KEY = 'valuebridge-demo-request-id';
+const REQUEST_ID_ALPHABET = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+
+function sessionRequestId() {
+  const stored = sessionStorage.getItem(REQUEST_ID_STORAGE_KEY);
+  if (stored) return stored;
+  const bytes = crypto.getRandomValues(new Uint8Array(4));
+  const suffix = Array.from(bytes, (byte) => REQUEST_ID_ALPHABET[byte % 36]).join('');
+  const generated = `PR-DEMO-${suffix}`;
+  sessionStorage.setItem(REQUEST_ID_STORAGE_KEY, generated);
+  return generated;
+}
+
+function currentRequestId() {
+  const field = form.elements.namedItem('request_id');
+  return (field && field.value) || sessionRequestId();
+}
+
+function applySessionRequestId() {
+  const field = form.elements.namedItem('request_id');
+  if (field) field.value = sessionRequestId();
+}
+
 function createElement(tag, options = {}) {
   const node = document.createElement(tag);
   if (options.className) node.className = options.className;
@@ -140,7 +166,7 @@ document.querySelectorAll('.example-chip').forEach((chip) => {
   chip.addEventListener('click', () => {
     const field = document.querySelector(chip.dataset.target);
     if (!field) return;
-    field.value = chip.dataset.example;
+    field.value = chip.dataset.example.replaceAll(REQUEST_ID_TOKEN, currentRequestId());
     field.focus();
   });
 });
@@ -481,3 +507,5 @@ function renderSecurityNotice(events) {
     `Tedarikçi eki karantinaya alındı ve karar dışında tutuldu: ${summary}.`,
   );
 }
+
+applySessionRequestId();
